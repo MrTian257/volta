@@ -15,7 +15,7 @@ use crate::version::{parse_version, VersionSpec};
 use archive::{self, Archive};
 use cfg_if::cfg_if;
 use fs_utils::ensure_containing_dir_exists;
-use log::debug;
+use log::{debug, info};
 use node_semver::Version;
 use serde::Deserialize;
 
@@ -59,7 +59,7 @@ pub fn fetch(version: &Version, hooks: Option<&ToolHooks<Node>>) -> Fallible<Nod
 
     let (archive, staging) = match load_cached_distro(&cache_file) {
         Some(archive) => {
-            debug!(
+            info!(
                 "Loading {} from cached archive at '{}'",
                 tool_version("node", version),
                 cache_file.display()
@@ -180,7 +180,7 @@ fn fetch_remote_distro(
     url: &str,
     staging_path: &Path,
 ) -> Fallible<Box<dyn Archive>> {
-    debug!("Downloading {} from {}", tool_version("node", version), url);
+    info!("Downloading {} from {}", tool_version("node", version), url);
     archive::fetch_native(url, staging_path).with_context(download_tool_error(
         tool::Spec::Node(VersionSpec::Exact(version.clone())),
         url,

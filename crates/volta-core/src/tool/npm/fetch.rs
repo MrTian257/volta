@@ -14,7 +14,7 @@ use crate::tool::{self, Npm};
 use crate::version::VersionSpec;
 use archive::{Archive, Tarball};
 use fs_utils::ensure_containing_dir_exists;
-use log::debug;
+use log::{debug, info};
 use node_semver::Version;
 
 pub fn fetch(version: &Version, hooks: Option<&ToolHooks<Npm>>) -> Fallible<()> {
@@ -23,7 +23,7 @@ pub fn fetch(version: &Version, hooks: Option<&ToolHooks<Npm>>) -> Fallible<()> 
 
     let (archive, staging) = match load_cached_distro(&cache_file) {
         Some(archive) => {
-            debug!(
+            info!(
                 "Loading {} from cached archive at '{}'",
                 tool_version("npm", version),
                 cache_file.display()
@@ -137,7 +137,7 @@ fn fetch_remote_distro(
     url: &str,
     staging_path: &Path,
 ) -> Fallible<Box<dyn Archive>> {
-    debug!("Downloading {} from {}", tool_version("npm", version), url);
+    info!("Downloading {} from {}", tool_version("npm", version), url);
     Tarball::fetch(url, staging_path).with_context(download_tool_error(
         tool::Spec::Npm(VersionSpec::Exact(version.clone())),
         url,
