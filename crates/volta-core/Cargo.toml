@@ -17,8 +17,8 @@ terminal_size = "0.3.0"
 indicatif = "0.17.8"
 console = ">=0.11.3, <1.0.0"
 readext = "0.1.0"
-serde_json = { version = "1.0.127", features = ["preserve_order"] }
-serde = { version = "1.0.209", features = ["derive"] }
+serde_json = { version = "1.0.128", features = ["preserve_order"] }
+serde = { version = "1.0.210", features = ["derive"] }
 archive = { path = "../archive" }
 node-semver = "2"
 cmdline_words_parser = "0.2.1"
@@ -49,11 +49,11 @@ httpdate = "1"
 headers = "0.4"
 attohttpc = { version = "0.28", default-features = false, features = ["json", "compress", "tls-rustls-native-roots"] }
 chain-map = "0.1.0"
-indexmap = "2.4.0"
+indexmap = "2.5.0"
 retry = "2"
 fs2 = "0.4.3"
 which = "6.0.3"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.52.0"
-junction = "1.1.0"
+junction = "1.2.0"
