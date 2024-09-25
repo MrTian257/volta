@@ -1,9 +1,11 @@
+// 导入所需的模块和类型
 use crate::error::{Context, ErrorKind, Fallible, VoltaError};
 use crate::platform::PlatformSpec;
 use crate::version::{option_version_serde, version_serde};
 use node_semver::Version;
 use serde::{Deserialize, Serialize};
 
+// 定义 NodeVersion 结构体，用于序列化和反序列化
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct NodeVersion {
     #[serde(with = "version_serde")]
@@ -12,6 +14,7 @@ pub struct NodeVersion {
     pub npm: Option<Version>,
 }
 
+// 定义 Platform 结构体，用于序列化和反序列化
 #[derive(Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub struct Platform {
     #[serde(default)]
@@ -25,6 +28,7 @@ pub struct Platform {
 }
 
 impl Platform {
+    // 从 PlatformSpec 创建 Platform 实例
     pub fn of(source: &PlatformSpec) -> Self {
         Platform {
             node: Some(NodeVersion {
@@ -36,12 +40,13 @@ impl Platform {
         }
     }
 
-    /// Serialize the Platform to a JSON String
+    /// 将 Platform 序列化为 JSON 字符串
     pub fn into_json(self) -> Fallible<String> {
         serde_json::to_string_pretty(&self).with_context(|| ErrorKind::StringifyPlatformError)
     }
 }
 
+// 实现从字符串到 Platform 的转换
 impl TryFrom<String> for Platform {
     type Error = VoltaError;
     fn try_from(src: String) -> Fallible<Self> {
@@ -55,6 +60,7 @@ impl TryFrom<String> for Platform {
     }
 }
 
+// 实现从 Platform 到 Option<PlatformSpec> 的转换
 impl From<Platform> for Option<PlatformSpec> {
     fn from(platform: Platform) -> Option<PlatformSpec> {
         let yarn = platform.yarn;
@@ -68,6 +74,7 @@ impl From<Platform> for Option<PlatformSpec> {
     }
 }
 
+// 测试模块
 #[cfg(test)]
 pub mod tests {
 
@@ -75,8 +82,8 @@ pub mod tests {
     use crate::platform;
     use node_semver::Version;
 
-    // NOTE: serde_json is required with the "preserve_order" feature in Cargo.toml,
-    // so these tests will serialized/deserialize in a predictable order
+    // 注意：serde_json 需要在 Cargo.toml 中启用 "preserve_order" 特性，
+    // 以确保这些测试的序列化/反序列化顺序是可预测的
 
     const BASIC_JSON_STR: &str = r#"{
   "node": {
@@ -87,6 +94,7 @@ pub mod tests {
   "yarn": "1.2.3"
 }"#;
 
+    // 测试从 JSON 字符串解析 Platform
     #[test]
     fn test_from_json() {
         let json_str = BASIC_JSON_STR.to_string();
@@ -102,6 +110,7 @@ pub mod tests {
         assert_eq!(platform, expected_platform);
     }
 
+    // 测试从空字符串解析 Platform
     #[test]
     fn test_from_json_empty_string() {
         let json_str = "".to_string();
@@ -114,6 +123,7 @@ pub mod tests {
         assert_eq!(platform, expected_platform);
     }
 
+    // 测试将 Platform 序列化为 JSON 字符串
     #[test]
     fn test_into_json() {
         let platform_spec = platform::PlatformSpec {

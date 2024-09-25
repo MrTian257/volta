@@ -1,5 +1,6 @@
 mod common;
 
+use log::info;
 use common::{ensure_layout, Error, IntoResult};
 use volta_core::error::{report_error, ExitCode};
 use volta_core::log::{LogContext, LogVerbosity, Logger};
@@ -18,6 +19,7 @@ pub fn main() {
     let result = ensure_layout().and_then(|()| execute_shim(&mut session).into_result());
     match result {
         Ok(()) => {
+            info!("测试是否走了main");
             session.add_event_end(ActivityKind::Tool, ExitCode::Success);
             session.exit(ExitCode::Success);
         }

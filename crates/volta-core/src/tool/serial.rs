@@ -1,19 +1,23 @@
-use std::cmp::Ordering;
-
 use super::Spec;
 use crate::error::{ErrorKind, Fallible};
 use crate::version::{VersionSpec, VersionTag};
+use log::info;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use std::cmp::Ordering;
 use validate_npm_package_name::{validate, Validity};
 
+// 定义用于匹配工具规格的正则表达式模式
 static TOOL_SPEC_PATTERN: Lazy<Regex> = Lazy::new(|| {
     Regex::new("^(?P<name>(?:@([^/]+?)[/])?([^/]+?))(@(?P<version>.+))?$").expect("regex is valid")
 });
+
+// 定义用于检查是否包含版本的正则表达式
 static HAS_VERSION: Lazy<Regex> = Lazy::new(|| Regex::new(r"^[^\s]+@").expect("regex is valid"));
 
-/// Methods for parsing a Spec out of string values
+/// Spec 的解析方法实现
 impl Spec {
+    // 从工具名称和版本创建 Spec
     pub fn from_str_and_version(tool_name: &str, version: VersionSpec) -> Self {
         match tool_name {
             "node" => Spec::Node(version),
@@ -24,7 +28,7 @@ impl Spec {
         }
     }
 
-    /// Try to parse a tool and version from a string like `<tool>[@<version>].
+    /// 尝试从字符串解析工具和版本，格式为 `<tool>[@<version>]`
     pub fn try_from_str(tool_spec: &str) -> Fallible<Self> {
         let captures =
             TOOL_SPEC_PATTERN
@@ -33,7 +37,7 @@ impl Spec {
                     tool_spec: tool_spec.into(),
                 })?;
 
-        // Validate that the captured name is a valid NPM package name.
+        // 验证捕获的名称是否为有效的 NPM 包名
         let name = &captures["name"];
         if let Validity::Invalid { errors, .. } = validate(name) {
             return Err(ErrorKind::InvalidToolName {
@@ -58,16 +62,15 @@ impl Spec {
         })
     }
 
-    /// Get a valid, sorted `Vec<Spec>` given a `Vec<String>`.
+    /// 从字符串列表获取有效的、排序后的 `Vec<Spec>`
     ///
-    /// Accounts for the following error conditions:
+    /// 处理以下错误情况：
     ///
-    /// - `volta install node 12`, where the user intended to install `node@12`
-    ///   but used syntax like in nodenv or nvm
-    /// - invalid version specs
+    /// - `volta install node 12`，用户本意是安装 `node@12`
+    ///   但使用了类似 nodenv 或 nvm 的语法
+    /// - 无效的版本规格
     ///
-    /// Returns a listed sorted so that if `node` is included in the list, it is
-    /// always first.
+    /// 返回排序后的列表，如果包含 `node`，它始终在列表的首位
     pub fn from_strings<T>(tool_strs: &[T], action: &str) -> Fallible<Vec<Spec>>
     where
         T: AsRef<str>,
@@ -83,7 +86,7 @@ impl Spec {
         Ok(tools)
     }
 
-    /// Check the args for the bad patterns of
+    /// 检查参数是否存在以下错误模式：
     /// - `volta install <number>`
     /// - `volta install <tool> <number>`
     fn check_args<T>(args: &[T], action: &str) -> Fallible<()>
@@ -93,12 +96,7 @@ impl Spec {
         let mut args = args.iter();
 
         match (args.next(), args.next(), args.next()) {
-            // The case we are concerned with here is where we have `<number>`.
-            // That is, exactly one argument, which is a valid version specifier.
-            //
-            // - `volta install node@12` is allowed.
-            // - `volta install 12` is an error.
-            // - `volta install lts` is an error.
+            // 这里关注的情况是只有一个参数，且该参数是有效的版本规格
             (Some(maybe_version), None, None) if is_version_like(maybe_version.as_ref()) => {
                 Err(ErrorKind::InvalidInvocationOfBareVersion {
                     action: action.to_string(),
@@ -106,14 +104,7 @@ impl Spec {
                 }
                 .into())
             }
-            // The case we are concerned with here is where we have `<tool> <number>`.
-            // This is only interesting if there are exactly two args. Then we care
-            // whether the two items are a bare name (with no `@version`), followed
-            // by a valid version specifier (ignoring custom tags). That is:
-            //
-            // - `volta install node@lts latest` is allowed.
-            // - `volta install node latest` is an error.
-            // - `volta install node latest yarn` is allowed.
+            // 这里关注的情况是有两个参数，第一个是工具名（不带 @version），第二个是有效的版本规格
             (Some(name), Some(maybe_version), None)
                 if !HAS_VERSION.is_match(name.as_ref())
                     && is_version_like(maybe_version.as_ref()) =>
@@ -129,11 +120,10 @@ impl Spec {
         }
     }
 
-    /// Compare `Spec`s for sorting when converting from strings
+    /// 比较 `Spec` 以在从字符串转换时进行排序
     ///
-    /// We want to preserve the original order as much as possible, so we treat tools in
-    /// the same tool category as equal. We still need to pull Node to the front of the
-    /// list, followed by Npm, pnpm, Yarn, and then Packages last.
+    /// 我们尽可能保留原始顺序，所以我们将同一工具类别的工具视为相等。
+    /// 我们仍然需要将 Node 放在列表的最前面，然后是 Npm、pnpm、Yarn，最后是 Packages。
     fn sort_comparator(left: &Spec, right: &Spec) -> Ordering {
         match (left, right) {
             (Spec::Node(_), Spec::Node(_)) => Ordering::Equal,
@@ -153,9 +143,9 @@ impl Spec {
     }
 }
 
-/// Determine if a given string is "version-like".
+/// 判断给定的字符串是否"类似版本"
 ///
-/// This means it is either 'latest', 'lts', a Version, or a Version Range.
+/// 这意味着它是 'latest'、'lts'、Version 或 Version Range
 fn is_version_like(value: &str) -> bool {
     matches!(
         value.parse(),
@@ -181,7 +171,7 @@ mod tests {
         const PATCH: &str = "3.0.0";
         const BETA: &str = "beta";
 
-        /// Convenience macro for generating the <tool>@<version> string.
+        /// 用于生成 <tool>@<version> 字符串的便捷宏
         macro_rules! versioned_tool {
             ($tool:expr, $version:expr) => {
                 format!("{}@{}", $tool, $version)

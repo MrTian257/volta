@@ -1,4 +1,4 @@
-//! Provides utilities for operating on the filesystem.
+//! 提供用于操作文件系统的实用工具。
 
 use std::fs::{self, create_dir_all, read_dir, DirEntry, File, Metadata};
 use std::io;
@@ -12,7 +12,7 @@ use retry::delay::Fibonacci;
 use retry::{retry, OperationResult};
 use tempfile::{tempdir_in, NamedTempFile, TempDir};
 
-/// Opens a file, creating it if it doesn't exist
+/// 打开一个文件，如果不存在则创建它
 pub fn touch(path: &Path) -> io::Result<File> {
     if !path.is_file() {
         if let Some(basedir) = path.parent() {
@@ -23,8 +23,7 @@ pub fn touch(path: &Path) -> io::Result<File> {
     File::open(path)
 }
 
-/// Removes the target directory, if it exists. If the directory doesn't exist, that is treated as
-/// success.
+/// 如果目标目录存在，则删除它。如果目录不存在，则视为成功。
 pub fn remove_dir_if_exists<P: AsRef<Path>>(path: P) -> Fallible<()> {
     fs::remove_dir_all(&path)
         .or_else(ok_if_not_found)
@@ -33,7 +32,7 @@ pub fn remove_dir_if_exists<P: AsRef<Path>>(path: P) -> Fallible<()> {
         })
 }
 
-/// Removes the target file, if it exists. If the file doesn't exist, that is treated as success.
+/// 如果目标文件存在，则删除它。如果文件不存在，则视为成功。
 pub fn remove_file_if_exists<P: AsRef<Path>>(path: P) -> Fallible<()> {
     fs::remove_file(&path)
         .or_else(ok_if_not_found)
@@ -42,10 +41,9 @@ pub fn remove_file_if_exists<P: AsRef<Path>>(path: P) -> Fallible<()> {
         })
 }
 
-/// Converts a failure because of file not found into a success.
+/// 将因文件未找到而导致的失败转换为成功。
 ///
-/// Handling the error is preferred over checking if a file exists before removing it, since
-/// that avoids a potential race condition between the check and the removal.
+/// 处理错误比在删除之前检查文件是否存在更可取，因为这避免了检查和删除之间的潜在竞争条件。
 pub fn ok_if_not_found<T: Default>(err: io::Error) -> io::Result<T> {
     match err.kind() {
         io::ErrorKind::NotFound => Ok(T::default()),
@@ -53,7 +51,7 @@ pub fn ok_if_not_found<T: Default>(err: io::Error) -> io::Result<T> {
     }
 }
 
-/// Reads a file, if it exists.
+/// 如果文件存在，则读取它。
 pub fn read_file<P: AsRef<Path>>(path: P) -> io::Result<Option<String>> {
     let result: io::Result<String> = fs::read_to_string(path);
 
@@ -66,16 +64,13 @@ pub fn read_file<P: AsRef<Path>>(path: P) -> io::Result<Option<String>> {
     }
 }
 
-/// Reads the full contents of a directory, eagerly extracting each directory entry
-/// and its metadata and returning an iterator over them. Returns `Error` if any of
-/// these steps fails.
+/// 读取目录的全部内容，急切地提取每个目录条目及其元数据，并返回它们的迭代器。
+/// 如果这些步骤中的任何一个失败，则返回 `Error`。
 ///
-/// This function makes it easier to write high level logic for manipulating the
-/// contents of directories (map, filter, etc).
+/// 这个函数使得编写用于操作目录内容的高级逻辑（映射、过滤等）变得更容易。
 ///
-/// Note that this function allocates an intermediate vector of directory entries to
-/// construct the iterator from, so if a directory is expected to be very large, it
-/// will allocate temporary data proportional to the number of entries.
+/// 注意，这个函数会分配一个中间向量来存储目录条目，以便构造迭代器，
+/// 所以如果预期目录非常大，它将分配与条目数量成比例的临时数据。
 pub fn read_dir_eager(dir: &Path) -> io::Result<impl Iterator<Item = (DirEntry, Metadata)>> {
     let entries = read_dir(dir)?;
     let vec = entries
@@ -89,8 +84,7 @@ pub fn read_dir_eager(dir: &Path) -> io::Result<impl Iterator<Item = (DirEntry, 
     Ok(vec.into_iter())
 }
 
-/// Reads the contents of a directory and returns a Vec of the matched results
-/// from the input function
+/// 读取目录的内容并返回输入函数匹配结果的 Vec
 pub fn dir_entry_match<T, F>(dir: &Path, mut f: F) -> io::Result<Vec<T>>
 where
     F: FnMut(&DirEntry) -> Option<T>,
@@ -102,7 +96,7 @@ where
         .collect::<Vec<T>>())
 }
 
-/// Creates a NamedTempFile in the Volta tmp directory
+/// 在 Volta tmp 目录中创建一个 NamedTempFile
 pub fn create_staging_file() -> Fallible<NamedTempFile> {
     let tmp_dir = volta_home()?.tmp_dir();
     NamedTempFile::new_in(tmp_dir).with_context(|| ErrorKind::CreateTempFileError {
@@ -110,7 +104,7 @@ pub fn create_staging_file() -> Fallible<NamedTempFile> {
     })
 }
 
-/// Creates a staging directory in the Volta tmp directory
+/// 在 Volta tmp 目录中创建一个临时目录
 pub fn create_staging_dir() -> Fallible<TempDir> {
     let tmp_root = volta_home()?.tmp_dir();
     tempdir_in(tmp_root).with_context(|| ErrorKind::CreateTempDirError {
@@ -118,7 +112,7 @@ pub fn create_staging_dir() -> Fallible<TempDir> {
     })
 }
 
-/// Create a file symlink. The `dst` path will be a symbolic link pointing to the `src` path.
+/// 创建文件符号链接。`dst` 路径将是一个指向 `src` 路径的符号链接。
 pub fn symlink_file<S, D>(src: S, dest: D) -> io::Result<()>
 where
     S: AsRef<Path>,
@@ -131,7 +125,7 @@ where
     return std::os::unix::fs::symlink(src, dest);
 }
 
-/// Create a directory symlink. The `dst` path will be a symbolic link pointing to the `src` path
+/// 创建目录符号链接。`dst` 路径将是一个指向 `src` 路径的符号链接。
 pub fn symlink_dir<S, D>(src: S, dest: D) -> io::Result<()>
 where
     S: AsRef<Path>,
@@ -144,7 +138,7 @@ where
     return std::os::unix::fs::symlink(src, dest);
 }
 
-/// Ensure that a given file has 'executable' permissions, otherwise we won't be able to call it
+/// 确保给定文件具有"可执行"权限，否则我们将无法调用它
 #[cfg(unix)]
 pub fn set_executable(bin: &Path) -> io::Result<()> {
     let mut permissions = fs::metadata(bin)?.permissions();
@@ -158,26 +152,24 @@ pub fn set_executable(bin: &Path) -> io::Result<()> {
     }
 }
 
-/// Ensure that a given file has 'executable' permissions, otherwise we won't be able to call it
+/// 确保给定文件具有"可执行"权限，否则我们将无法调用它
 ///
-/// Note: This is a no-op on Windows, which has no concept of 'executable' permissions
+/// 注意：这在 Windows 上是一个空操作，因为 Windows 没有"可执行"权限的概念
 #[cfg(windows)]
 pub fn set_executable(_bin: &Path) -> io::Result<()> {
     Ok(())
 }
 
-/// Rename a file or directory to a new name, retrying if the operation fails because of permissions
+/// 将文件或目录重命名为新名称，如果操作因权限问题失败则重试
 ///
-/// Will retry for ~30 seconds with longer and longer delays between each, to allow for virus scan
-/// and other automated operations to complete.
+/// 将重试约30秒，每次重试之间的延迟越来越长，以允许病毒扫描和其他自动化操作完成。
 pub fn rename<F, T>(from: F, to: T) -> io::Result<()>
 where
     F: AsRef<Path>,
     T: AsRef<Path>,
 {
-    // 21 Fibonacci steps starting at 1 ms is ~28 seconds total
-    // See https://github.com/rust-lang/rustup/pull/1873 where this was used by Rustup to work around
-    // virus scanning file locks
+    // 从1毫秒开始的21个斐波那契步骤总共约28秒
+    // 参见 https://github.com/rust-lang/rustup/pull/1873，Rustup 使用这种方法来解决病毒扫描文件锁定问题
     let from = from.as_ref();
     let to = to.as_ref();
 

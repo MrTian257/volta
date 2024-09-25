@@ -1,0 +1,130 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\workspace\\github\\volta\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\workspace\\github\\volta\\crates\\volta-core\\src\\hook\\mod.rs||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:crates\\volta-core\\src\\hook\\mod.rs||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\workspace\\github\\volta\\crates\\volta-core\\fixtures\\hooks\\project\\.volta\\hooks.json||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:crates\\volta-core\\fixtures\\hooks\\project\\.volta\\hooks.json||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\workspace\\github\\volta\\crates\\volta-core\\src\\hook\\serial.rs||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:crates\\volta-core\\src\\hook\\serial.rs||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\workspace\\github\\volta\\src\\common.rs||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\common.rs||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\workspace\\github\\volta\\src\\command\\uninstall.rs||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\command\\uninstall.rs||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\workspace\\github\\volta\\src\\main.rs||{3B902123-F8A7-4915-9F01-361F908088D0}",
+      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:src\\main.rs||{3B902123-F8A7-4915-9F01-361F908088D0}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 2,
+          "Children": [
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{3ae79031-e1bc-11d0-8f78-00a0c9110057}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 1,
+              "Title": "hooks.json",
+              "DocumentMoniker": "C:\\workspace\\github\\volta\\crates\\volta-core\\fixtures\\hooks\\project\\.volta\\hooks.json",
+              "RelativeDocumentMoniker": "crates\\volta-core\\fixtures\\hooks\\project\\.volta\\hooks.json",
+              "ToolTip": "C:\\workspace\\github\\volta\\crates\\volta-core\\fixtures\\hooks\\project\\.volta\\hooks.json",
+              "RelativeToolTip": "crates\\volta-core\\fixtures\\hooks\\project\\.volta\\hooks.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABIAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2024-09-24T02:16:16.452Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "mod.rs",
+              "DocumentMoniker": "C:\\workspace\\github\\volta\\crates\\volta-core\\src\\hook\\mod.rs",
+              "RelativeDocumentMoniker": "crates\\volta-core\\src\\hook\\mod.rs",
+              "ToolTip": "C:\\workspace\\github\\volta\\crates\\volta-core\\src\\hook\\mod.rs",
+              "RelativeToolTip": "crates\\volta-core\\src\\hook\\mod.rs",
+              "ViewState": "AgIAAIsCAAAAAAAAAAAmwJACAAAmAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2024-09-24T02:15:56.466Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{1c4feeaa-4718-4aa9-859d-94ce25d182ba}"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "serial.rs",
+              "DocumentMoniker": "C:\\workspace\\github\\volta\\crates\\volta-core\\src\\hook\\serial.rs",
+              "RelativeDocumentMoniker": "crates\\volta-core\\src\\hook\\serial.rs",
+              "ToolTip": "C:\\workspace\\github\\volta\\crates\\volta-core\\src\\hook\\serial.rs",
+              "RelativeToolTip": "crates\\volta-core\\src\\hook\\serial.rs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAABYAAAABAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2024-09-24T02:07:50.92Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
+              "Title": "uninstall.rs",
+              "DocumentMoniker": "C:\\workspace\\github\\volta\\src\\command\\uninstall.rs",
+              "RelativeDocumentMoniker": "src\\command\\uninstall.rs",
+              "ToolTip": "C:\\workspace\\github\\volta\\src\\command\\uninstall.rs",
+              "RelativeToolTip": "src\\command\\uninstall.rs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAACgAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2024-09-24T02:04:51.384Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 3,
+              "Title": "common.rs",
+              "DocumentMoniker": "C:\\workspace\\github\\volta\\src\\common.rs",
+              "RelativeDocumentMoniker": "src\\common.rs",
+              "ToolTip": "C:\\workspace\\github\\volta\\src\\common.rs",
+              "RelativeToolTip": "src\\common.rs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAoAAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2024-09-24T02:04:44.405Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 5,
+              "Title": "main.rs",
+              "DocumentMoniker": "C:\\workspace\\github\\volta\\src\\main.rs",
+              "RelativeDocumentMoniker": "src\\main.rs",
+              "ToolTip": "C:\\workspace\\github\\volta\\src\\main.rs",
+              "RelativeToolTip": "src\\main.rs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001001|",
+              "WhenOpened": "2024-09-24T02:04:42.663Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-//! This module provides a custom Logger implementation for use with the `log` crate
+//! 此模块为 `log` crate 提供了一个自定义的 Logger 实现
 use console::style;
 use log::{trace, Level, LevelFilter, Log, Metadata, Record, SetLoggerError};
 use std::env;
@@ -24,19 +24,19 @@ const ALLOWED_PREFIXES: [&str; 5] = [
 ];
 const WRAP_INDENT: &str = "    ";
 
-/// Represents the context from which the logger was created
+/// 表示创建日志记录器的上下文
 pub enum LogContext {
-    /// Log messages from the `volta` executable
+    /// 来自 `volta` 可执行文件的日志消息
     Volta,
 
-    /// Log messages from one of the shims
+    /// 来自某个 shim 的日志消息
     Shim,
 
-    /// Log messages from the migration
+    /// 来自迁移的日志消息
     Migration,
 }
 
-/// Represents the level of verbosity that was requested by the user
+/// 表示用户请求的详细程度级别
 #[derive(Debug, Copy, Clone)]
 pub enum LogVerbosity {
     Quiet,
@@ -66,9 +66,9 @@ impl Log for Logger {
             match record.level() {
                 Level::Error => self.log_error(record.args()),
                 Level::Warn => self.log_warning(record.args()),
-                // all info-level messages go to stdout
+                // 所有 info 级别的消息都发送到 stdout
                 Level::Info => println!("{}", record.args()),
-                // all debug- and trace-level messages go to stderr
+                // 所有 debug 和 trace 级别的消息都发送到 stderr
                 Level::Debug => eprintln!("[verbose] {}", record.args()),
                 Level::Trace => eprintln!("[trace] {}", record.args()),
             }
@@ -79,9 +79,9 @@ impl Log for Logger {
 }
 
 impl Logger {
-    /// Initialize the global logger with a Logger instance
-    /// Will use the requested level of Verbosity
-    /// If set to Default, will use the environment to determine the level of verbosity
+    /// 使用 Logger 实例初始化全局日志记录器
+    /// 将使用请求的详细程度级别
+    /// 如果设置为 Default，将使用环境来确定详细程度级别
     pub fn init(context: LogContext, verbosity: LogVerbosity) -> Result<(), SetLoggerError> {
         let logger = Logger::new(context, verbosity);
         log::set_max_level(logger.level);
@@ -131,11 +131,10 @@ impl Logger {
     }
 }
 
-/// Wraps the supplied content to the terminal width, if we are in a terminal.
-/// If not, returns the content as a String
+/// 如果我们在终端中，将提供的内容换行到终端宽度。
+/// 如果不是，则将内容作为字符串返回
 ///
-/// Note: Uses the supplied prefix to calculate the terminal width, but then removes
-/// it so that it can be styled (style characters are counted against the wrapped width)
+/// 注意：使用提供的前缀计算终端宽度，但随后将其删除，以便可以设置样式（样式字符计入换行宽度）
 fn wrap_content<D>(prefix: &str, content: &D) -> String
 where
     D: Display,
@@ -153,18 +152,18 @@ where
     }
 }
 
-/// Determines the correct logging level based on the environment
-/// If VOLTA_LOGLEVEL is set to a valid level, we use that
-/// If not, we check the current stdout to determine whether it is a TTY or not
-///     If it is a TTY, we use Info
-///     If it is NOT a TTY, we use Error as we don't want to show warnings when running as a script
+/// 根据环境确定正确的日志级别
+/// 如果 VOLTA_LOGLEVEL 设置为有效级别，我们使用它
+/// 如果没有，我们检查当前的 stdout 以确定它是否是 TTY
+///     如果是 TTY，我们使用 Info
+///     如果不是 TTY，我们使用 Error，因为我们不想在作为脚本运行时显示警告
 fn level_from_env() -> LevelFilter {
     env::var(VOLTA_LOGLEVEL)
         .ok()
         .and_then(|level| level.to_uppercase().parse().ok())
         .unwrap_or_else(|| {
             if std::io::stdout().is_terminal() {
-                trace!("using fallback log level (info)");
+                trace!("使用回退日志级别（info）");
                 LevelFilter::Info
             } else {
                 LevelFilter::Error

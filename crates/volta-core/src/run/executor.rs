@@ -19,6 +19,7 @@ use crate::tool::package::{DirectInstall, InPlaceUpgrade, PackageConfig, Package
 use crate::tool::Spec;
 use log::{info, warn};
 
+// 定义Executor枚举，表示不同类型的执行器
 pub enum Executor {
     Tool(Box<ToolCommand>),
     PackageInstall(Box<PackageInstallCommand>),
@@ -30,6 +31,7 @@ pub enum Executor {
 }
 
 impl Executor {
+    // 为执行器设置环境变量
     pub fn envs<K, V, S>(&mut self, envs: &HashMap<K, V, S>)
     where
         K: AsRef<OsStr>,
@@ -40,9 +42,8 @@ impl Executor {
             Executor::PackageInstall(cmd) => cmd.envs(envs),
             Executor::PackageLink(cmd) => cmd.envs(envs),
             Executor::PackageUpgrade(cmd) => cmd.envs(envs),
-            // Internal installs use Volta's logic and don't rely on the environment variables
+            // 内部安装和卸载不依赖环境变量
             Executor::InternalInstall(_) => {}
-            // Uninstalls use Volta's logic and don't rely on environment variables
             Executor::Uninstall(_) => {}
             Executor::Multiple(executors) => {
                 for exe in executors {
@@ -52,15 +53,15 @@ impl Executor {
         }
     }
 
+    // 设置命令行平台
     pub fn cli_platform(&mut self, cli: CliPlatform) {
         match self {
             Executor::Tool(cmd) => cmd.cli_platform(cli),
             Executor::PackageInstall(cmd) => cmd.cli_platform(cli),
             Executor::PackageLink(cmd) => cmd.cli_platform(cli),
             Executor::PackageUpgrade(cmd) => cmd.cli_platform(cli),
-            // Internal installs use Volta's logic and don't rely on the Node platform
+            // 内部安装和卸载不依赖Node平台
             Executor::InternalInstall(_) => {}
-            // Uninstall use Volta's logic and don't rely on the Node platform
             Executor::Uninstall(_) => {}
             Executor::Multiple(executors) => {
                 for exe in executors {
@@ -70,6 +71,7 @@ impl Executor {
         }
     }
 
+    // 执行命令
     pub fn execute(self, session: &mut Session) -> Fallible<ExitStatus> {
         match self {
             Executor::Tool(cmd) => cmd.execute(session),
@@ -77,7 +79,7 @@ impl Executor {
             Executor::PackageLink(cmd) => cmd.execute(session),
             Executor::PackageUpgrade(cmd) => cmd.execute(session),
             Executor::InternalInstall(cmd) => cmd.execute(session),
-            Executor::Uninstall(cmd) => cmd.execute(),
+            Executor::Uninstall(cmd) => cmd.execute(session),
             Executor::Multiple(executors) => {
                 info!(
                     "{} Volta is processing each package separately",
@@ -85,19 +87,19 @@ impl Executor {
                 );
                 for exe in executors {
                     let status = exe.execute(session)?;
-                    // If any of the sub-commands fail, then we should stop installing and return
-                    // that failure.
+                    // 如果任何子命令失败，停止安装并返回失败状态
                     if !status.success() {
                         return Ok(status);
                     }
                 }
-                // If we get here, then all of the sub-commands succeeded, so we should report success
+                // 所有子命令成功，返回成功状态
                 Ok(ExitStatus::from_raw(0))
             }
         }
     }
 }
 
+// 从Vec<Executor>转换为Executor
 impl From<Vec<Executor>> for Executor {
     fn from(mut executors: Vec<Executor>) -> Self {
         if executors.len() == 1 {
@@ -108,17 +110,14 @@ impl From<Vec<Executor>> for Executor {
     }
 }
 
-/// Process builder for launching a Volta-managed tool
-///
-/// Tracks the Platform as well as what kind of tool is being executed, to allow individual tools
-/// to customize the behavior before execution.
+// 用于启动Volta管理的工具的进程构建器
 pub struct ToolCommand {
     command: Command,
     platform: Option<Platform>,
     kind: ToolKind,
 }
 
-/// The kind of tool being executed, used to determine the correct execution context
+// 定义工具类型枚举
 pub enum ToolKind {
     Node,
     Npm,
@@ -131,6 +130,7 @@ pub enum ToolKind {
 }
 
 impl ToolCommand {
+    // 创建新的ToolCommand实例
     pub fn new<E, A, S>(exe: E, args: A, platform: Option<Platform>, kind: ToolKind) -> Self
     where
         E: AsRef<OsStr>,
@@ -147,7 +147,7 @@ impl ToolCommand {
         }
     }
 
-    /// Adds or updates environment variables that the command will use
+    // 添加或更新命令将使用的环境变量
     pub fn envs<E, K, V>(&mut self, envs: E)
     where
         E: IntoIterator<Item = (K, V)>,
@@ -157,7 +157,7 @@ impl ToolCommand {
         self.command.envs(envs);
     }
 
-    /// Adds or updates a single environment variable that the command will use
+    // 添加或更新单个环境变量
     pub fn env<K, V>(&mut self, key: K, value: V)
     where
         K: AsRef<OsStr>,
@@ -166,7 +166,7 @@ impl ToolCommand {
         self.command.env(key, value);
     }
 
-    /// Updates the Platform for the command to include values from the command-line
+    // 更新命令的Platform以包含命令行值
     pub fn cli_platform(&mut self, cli: CliPlatform) {
         self.platform = match self.platform.take() {
             Some(base) => Some(cli.merge(base)),
@@ -174,7 +174,7 @@ impl ToolCommand {
         };
     }
 
-    /// Runs the command, returning the `ExitStatus` if it successfully launches
+    // 运行命令，如果成功启动则返回ExitStatus
     pub fn execute(mut self, session: &mut Session) -> Fallible<ExitStatus> {
         let (path, on_failure) = match self.kind {
             ToolKind::Node => super::node::execution_context(self.platform, session)?,
@@ -199,26 +199,22 @@ impl ToolCommand {
     }
 }
 
+// 将ToolCommand转换为Executor
 impl From<ToolCommand> for Executor {
     fn from(cmd: ToolCommand) -> Self {
         Executor::Tool(Box::new(cmd))
     }
 }
 
-/// Process builder for launching a package install command (e.g. `npm install --global`)
-///
-/// This will use a `DirectInstall` instance to modify the command before running to point it to
-/// the Volta directory. It will also complete the install, writing config files and shims
+// 用于启动包安装命令的进程构建器
 pub struct PackageInstallCommand {
-    /// The command that will ultimately be executed
     command: Command,
-    /// The installer that modifies the command as necessary and provides the completion method
     installer: DirectInstall,
-    /// The platform to use when running the command.
     platform: Platform,
 }
 
 impl PackageInstallCommand {
+    // 创建新的PackageInstallCommand实例
     pub fn new<A, S>(args: A, platform: Platform, manager: PackageManager) -> Fallible<Self>
     where
         A: IntoIterator<Item = S>,
@@ -240,6 +236,7 @@ impl PackageInstallCommand {
         })
     }
 
+    // 创建用于npm link的PackageInstallCommand实例
     pub fn for_npm_link<A, S>(args: A, platform: Platform, name: String) -> Fallible<Self>
     where
         A: IntoIterator<Item = S>,
@@ -257,7 +254,7 @@ impl PackageInstallCommand {
         })
     }
 
-    /// Adds or updates environment variables that the command will use
+    // 添加或更新命令将使用的环境变量
     pub fn envs<E, K, V>(&mut self, envs: E)
     where
         E: IntoIterator<Item = (K, V)>,
@@ -267,13 +264,12 @@ impl PackageInstallCommand {
         self.command.envs(envs);
     }
 
-    /// Updates the Platform for the command to include values from the command-line
+    // 更新命令的Platform以包含命令行值
     pub fn cli_platform(&mut self, cli: CliPlatform) {
         self.platform = cli.merge(self.platform.clone());
     }
 
-    /// Runs the install command, applying the necessary modifications to install into the Volta
-    /// data directory
+    // 运行安装命令，应用必要的修改以安装到Volta数据目录
     pub fn execute(mut self, session: &mut Session) -> Fallible<ExitStatus> {
         let _lock = VoltaLock::acquire();
         let image = self.platform.checkout(session)?;
@@ -296,26 +292,22 @@ impl PackageInstallCommand {
     }
 }
 
+// 将PackageInstallCommand转换为Executor
 impl From<PackageInstallCommand> for Executor {
     fn from(cmd: PackageInstallCommand) -> Self {
         Executor::PackageInstall(Box::new(cmd))
     }
 }
 
-/// Process builder for launching a `npm link <package>` command
-///
-/// This will set the appropriate environment variables to ensure that the linked package can be
-/// found.
+// 用于启动`npm link <package>`命令的进程构建器
 pub struct PackageLinkCommand {
-    /// The command that will ultimately be executed
     command: Command,
-    /// The tool the user wants to link
     tool: String,
-    /// The platform to use when running the command
     platform: Platform,
 }
 
 impl PackageLinkCommand {
+    // 创建新的PackageLinkCommand实例
     pub fn new<A, S>(args: A, platform: Platform, tool: String) -> Self
     where
         A: IntoIterator<Item = S>,
@@ -331,7 +323,7 @@ impl PackageLinkCommand {
         }
     }
 
-    /// Adds or updates environment variables that the command will use
+    // 添加或更新命令将使用的环境变量
     pub fn envs<E, K, V>(&mut self, envs: E)
     where
         E: IntoIterator<Item = (K, V)>,
@@ -341,15 +333,12 @@ impl PackageLinkCommand {
         self.command.envs(envs);
     }
 
-    /// Updates the Platform for the command to include values from the command-line
+    // 更新命令的Platform以包含命令行值
     pub fn cli_platform(&mut self, cli: CliPlatform) {
         self.platform = cli.merge(self.platform.clone());
     }
 
-    /// Runs the link command, applying the necessary modifications to pull from the Volta data
-    /// directory.
-    ///
-    /// This will also check for some common failure cases and alert the user
+    // 运行link命令，应用必要的修改以从Volta数据目录中提取
     pub fn execute(mut self, session: &mut Session) -> Fallible<ExitStatus> {
         self.check_linked_package(session)?;
 
@@ -366,10 +355,7 @@ impl PackageLinkCommand {
             .with_context(|| ErrorKind::BinaryExecError)
     }
 
-    /// Check for possible failure cases with the linked package:
-    ///     - The package is not found as a global
-    ///     - The package exists, but was linked using a different package manager
-    ///     - The package is using a different version of Node than the current project (warning)
+    // 检查链接包的可能失败情况
     fn check_linked_package(&self, session: &mut Session) -> Fallible<()> {
         let config =
             PackageConfig::from_file(volta_home()?.default_package_config_file(&self.tool))
@@ -399,26 +385,22 @@ impl PackageLinkCommand {
     }
 }
 
+// 将PackageLinkCommand转换为Executor
 impl From<PackageLinkCommand> for Executor {
     fn from(cmd: PackageLinkCommand) -> Self {
         Executor::PackageLink(Box::new(cmd))
     }
 }
 
-/// Process builder for launching a global package upgrade command (e.g. `npm update -g`)
-///
-/// This will use an `InPlaceUpgrade` instance to modify the command and point at the appropriate
-/// image directory. It will also complete the install, writing any updated configs and shims
+// 用于启动全局包升级命令的进程构建器
 pub struct PackageUpgradeCommand {
-    /// The command that will ultimately be executed
     command: Command,
-    /// Helper utility to modify the command and provide the completion method
     upgrader: InPlaceUpgrade,
-    /// The platform to run the command under
     platform: Platform,
 }
 
 impl PackageUpgradeCommand {
+    // 创建新的PackageUpgradeCommand实例
     pub fn new<A, S>(
         args: A,
         package: String,
@@ -445,7 +427,7 @@ impl PackageUpgradeCommand {
         })
     }
 
-    /// Adds or updates environment variables that the command will use
+    // 添加或更新命令将使用的环境变量
     pub fn envs<E, K, V>(&mut self, envs: E)
     where
         E: IntoIterator<Item = (K, V)>,
@@ -455,16 +437,12 @@ impl PackageUpgradeCommand {
         self.command.envs(envs);
     }
 
-    /// Updates the Platform for the command to include values from the command-line
+    // 更新命令的Platform以包含命令行值
     pub fn cli_platform(&mut self, cli: CliPlatform) {
         self.platform = cli.merge(self.platform.clone());
     }
 
-    /// Runs the upgrade command, applying the necessary modifications to point at the Volta image
-    /// directory
-    ///
-    /// Will also check for common failure cases, such as non-existant package or wrong package
-    /// manager
+    // 运行升级命令，应用必要的修改以指向Volta镜像目录
     pub fn execute(mut self, session: &mut Session) -> Fallible<ExitStatus> {
         self.upgrader.check_upgraded_package()?;
 
@@ -489,27 +467,25 @@ impl PackageUpgradeCommand {
     }
 }
 
+// 将PackageUpgradeCommand转换为Executor
 impl From<PackageUpgradeCommand> for Executor {
     fn from(cmd: PackageUpgradeCommand) -> Self {
         Executor::PackageUpgrade(Box::new(cmd))
     }
 }
 
-/// Executor for running an internal install (installing Node, npm, pnpm or Yarn using the `volta
-/// install` logic)
-///
-/// Note: This is not intended to be used for Package installs. Those should go through the
-/// `PackageInstallCommand` above, to more seamlessly integrate with the package manager
+// 用于运行内部安装的执行器
 pub struct InternalInstallCommand {
     tool: Spec,
 }
 
 impl InternalInstallCommand {
+    // 创建新的InternalInstallCommand实例
     pub fn new(tool: Spec) -> Self {
         InternalInstallCommand { tool }
     }
 
-    /// Runs the install, using Volta's internal install logic for the appropriate tool
+    // 使用Volta的内部安装逻辑运行安装
     fn execute(self, session: &mut Session) -> Fallible<ExitStatus> {
         info!(
             "{} using Volta to install {}",
@@ -523,39 +499,39 @@ impl InternalInstallCommand {
     }
 }
 
+// 将InternalInstallCommand转换为Executor
 impl From<InternalInstallCommand> for Executor {
     fn from(cmd: InternalInstallCommand) -> Self {
         Executor::InternalInstall(Box::new(cmd))
     }
 }
 
-/// Executor for running a tool uninstall command.
-///
-/// This will use the `volta uninstall` logic to correctly ensure that the package is fully
-/// uninstalled
+// 用于运行工具卸载命令的执行器
 pub struct UninstallCommand {
     tool: Spec,
 }
 
 impl UninstallCommand {
+    // 创建新的UninstallCommand实例
     pub fn new(tool: Spec) -> Self {
         UninstallCommand { tool }
     }
 
-    /// Runs the uninstall with Volta's internal uninstall logic
-    fn execute(self) -> Fallible<ExitStatus> {
+    // 使用Volta的内部卸载逻辑运行卸载
+    fn execute(self, session: &mut Session) -> Fallible<ExitStatus> {
         info!(
             "{} using Volta to uninstall {}",
             note_prefix(),
             self.tool.name()
         );
 
-        self.tool.uninstall()?;
+        self.tool.uninstall(session)?;
 
         Ok(ExitStatus::from_raw(0))
     }
 }
 
+// 将UninstallCommand转换为Executor
 impl From<UninstallCommand> for Executor {
     fn from(cmd: UninstallCommand) -> Self {
         Executor::Uninstall(Box::new(cmd))

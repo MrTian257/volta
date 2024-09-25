@@ -2,8 +2,9 @@
 mod command;
 mod cli;
 
+use std::fmt::format;
 use clap::Parser;
-
+use log::info;
 use volta_core::error::report_error;
 use volta_core::log::{LogContext, LogVerbosity, Logger};
 use volta_core::session::{ActivityKind, Session};
@@ -30,11 +31,15 @@ pub fn main() {
     };
     Logger::init(LogContext::Volta, verbosity).expect("Only a single logger should be initialized");
     log::trace!("log level: {verbosity:?}");
+    log::info!("测试是否走了main放啊发1");
 
     let mut session = Session::init();
+
+
     session.add_event_start(ActivityKind::Volta);
 
     let result = ensure_layout().and_then(|()| volta.run(&mut session).map_err(Error::Volta));
+
     match result {
         Ok(exit_code) => {
             session.add_event_end(ActivityKind::Volta, exit_code);

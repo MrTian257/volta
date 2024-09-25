@@ -1,5 +1,4 @@
-//! Provides types for working with Volta's _inventory_, the local repository
-//! of available tool versions.
+//! 提供用于处理 Volta 的 _库存_ 的类型，即本地可用工具版本的仓库。
 
 use std::collections::BTreeSet;
 use std::ffi::OsStr;
@@ -14,7 +13,7 @@ use log::debug;
 use node_semver::Version;
 use walkdir::WalkDir;
 
-/// Checks if a given Node version image is available on the local machine
+/// 检查给定的 Node 版本镜像是否在本地机器上可用
 pub fn node_available(version: &Version) -> Fallible<bool> {
     volta_home().map(|home| {
         home.node_image_root_dir()
@@ -23,57 +22,56 @@ pub fn node_available(version: &Version) -> Fallible<bool> {
     })
 }
 
-/// Collects a set of all Node versions fetched on the local machine
+/// 收集本地机器上已获取的所有 Node 版本的集合
 pub fn node_versions() -> Fallible<BTreeSet<Version>> {
     volta_home().and_then(|home| read_versions(home.node_image_root_dir()))
 }
 
-/// Checks if a given npm version image is available on the local machine
+/// 检查给定的 npm 版本镜像是否在本地机器上可用
 pub fn npm_available(version: &Version) -> Fallible<bool> {
     volta_home().map(|home| home.npm_image_dir(&version.to_string()).exists())
 }
 
-/// Collects a set of all npm versions fetched on the local machine
+/// 收集本地机器上已获取的所有 npm 版本的集合
 pub fn npm_versions() -> Fallible<BTreeSet<Version>> {
     volta_home().and_then(|home| read_versions(home.npm_image_root_dir()))
 }
 
-/// Checks if a given pnpm version image is available on the local machine
+/// 检查给定的 pnpm 版本镜像是否在本地机器上可用
 pub fn pnpm_available(version: &Version) -> Fallible<bool> {
     volta_home().map(|home| home.pnpm_image_dir(&version.to_string()).exists())
 }
 
-/// Collects a set of all pnpm versions fetched on the local machine
+/// 收集本地机器上已获取的所有 pnpm 版本的集合
 pub fn pnpm_versions() -> Fallible<BTreeSet<Version>> {
     volta_home().and_then(|home| read_versions(home.pnpm_image_root_dir()))
 }
 
-/// Checks if a given Yarn version image is available on the local machine
+/// 检查给定的 Yarn 版本镜像是否在本地机器上可用
 pub fn yarn_available(version: &Version) -> Fallible<bool> {
     volta_home().map(|home| home.yarn_image_dir(&version.to_string()).exists())
 }
 
-/// Collects a set of all Yarn versions fetched on the local machine
+/// 收集本地机器上已获取的所有 Yarn 版本的集合
 pub fn yarn_versions() -> Fallible<BTreeSet<Version>> {
     volta_home().and_then(|home| read_versions(home.yarn_image_root_dir()))
 }
 
-/// Collects a set of all Package Configs on the local machine
+/// 收集本地机器上所有包配置的集合
 pub fn package_configs() -> Fallible<BTreeSet<PackageConfig>> {
     let package_dir = volta_home()?.default_package_dir();
 
     WalkDir::new(package_dir)
         .max_depth(2)
         .into_iter()
-        // Ignore any items which didn't resolve as `DirEntry` correctly.
-        // There is no point trying to do anything with those, and no error
-        // we can report to the user in any case. Log the failure in the
-        // debug output, though
+        // 忽略任何未正确解析为 `DirEntry` 的项。
+        // 对于这些项，我们无法做任何事情，也无法向用户报告任何错误。
+        // 但是，在调试输出中记录失败。
         .filter_map(|entry| match entry {
             Ok(dir_entry) => {
-                // Ignore directory entries and any files that don't have a .json extension.
-                // This will prevent us from trying to parse OS-generated files as package
-                // configs (e.g. `.DS_Store` on macOS)
+                // 忽略目录条目和任何没有 .json 扩展名的文件。
+                // 这将防止我们尝试将操作系统生成的文件解析为包配置
+                // （例如 macOS 上的 `.DS_Store`）
                 let extension = dir_entry.path().extension().and_then(OsStr::to_str);
                 match (dir_entry.file_type().is_file(), extension) {
                     (true, Some(ext)) if ext.eq_ignore_ascii_case("json") => {
@@ -91,8 +89,7 @@ pub fn package_configs() -> Fallible<BTreeSet<PackageConfig>> {
         .collect()
 }
 
-/// Reads the contents of a directory and returns the set of all versions found
-/// in the directory's listing by parsing the directory names as semantic versions
+/// 读取目录的内容并返回通过将目录名解析为语义版本找到的所有版本的集合
 fn read_versions(dir: &Path) -> Fallible<BTreeSet<Version>> {
     let contents = read_dir_eager(dir).with_context(|| ErrorKind::ReadDirError {
         dir: dir.to_owned(),

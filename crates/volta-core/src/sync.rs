@@ -1,25 +1,20 @@
-//! Inter-process locking on the Volta directory
+//! Volta目录的进程间锁定
 //!
-//! To avoid issues where multiple separate invocations of Volta modify the
-//! data directory simultaneously, we provide a locking mechanism that only
-//! allows a single process to modify the directory at a time.
+//! 为了避免多个独立的Volta调用同时修改数据目录的问题，
+//! 我们提供了一个锁定机制，一次只允许一个进程修改目录。
 //!
-//! However, within a single process, we may attempt to lock the directory in
-//! different code paths. For example, when installing a package we require a
-//! lock, however we also may need to install Node, which requires a lock as
-//! well. To avoid deadlocks in those situations, we track the state of the
-//! lock globally:
+//! 然而，在单个进程内，我们可能会在不同的代码路径中尝试锁定目录。
+//! 例如，在安装包时我们需要一个锁，但我们也可能需要安装Node，
+//! 这也需要一个锁。为了避免这些情况下的死锁，我们全局跟踪锁的状态：
 //!
-//! - If a lock is requested and no locks are active, then we acquire a file
-//!   lock on the `volta.lock` file and initialize the state with a count of 1
-//! - If a lock already exists, then we increment the count of active locks
-//! - When a lock is no longer needed, we decrement the count of active locks
-//! - When the last lock is released, we release the file lock and clear the
-//!   global lock state.
+//! - 如果请求锁且没有活动锁，则我们在`volta.lock`文件上获取文件锁，
+//!   并将状态初始化为计数1
+//! - 如果锁已存在，则我们增加活动锁的计数
+//! - 当不再需要锁时，我们减少活动锁的计数
+//! - 当最后一个锁被释放时，我们释放文件锁并清除全局锁状态。
 //!
-//! This allows multiple code paths to request a lock and not worry about
-//! potential deadlocks, while still preventing multiple processes from making
-//! concurrent changes.
+//! 这允许多个代码路径请求锁而不用担心潜在的死锁，
+//! 同时仍然防止多个进程进行并发更改。
 
 use std::fs::{File, OpenOptions};
 use std::marker::PhantomData;
@@ -33,14 +28,14 @@ use fs2::FileExt;
 use log::debug;
 use once_cell::sync::Lazy;
 
+// 全局锁状态
 static LOCK_STATE: Lazy<Mutex<Option<LockState>>> = Lazy::new(|| Mutex::new(None));
 
-/// The current state of locks for this process.
+/// 此进程的当前锁状态。
 ///
-/// Note: To ensure thread safety _within_ this process, we enclose the
-/// state in a Mutex. This Mutex and it's associated locks are separate
-/// from the overall process lock and are only used to ensure the count
-/// is accurately maintained within a given process.
+/// 注意：为确保此进程内的线程安全，我们将状态封装在Mutex中。
+/// 这个Mutex及其相关锁与整体进程锁是分开的，
+/// 仅用于确保在给定进程内准确维护计数。
 struct LockState {
     file: File,
     count: usize,
@@ -48,13 +43,12 @@ struct LockState {
 
 const LOCK_FILE: &str = "volta.lock";
 
-/// An RAII implementation of a process lock on the Volta directory. A given Volta process can have
-/// multiple active locks, but only one process can have any locks at a time.
+/// Volta目录进程锁的RAII实现。一个给定的Volta进程可以有
+/// 多个活动锁，但一次只有一个进程可以有任何锁。
 ///
-/// Once all of the `VoltaLock` objects go out of scope, the lock will be released to other
-/// processes.
+/// 一旦所有的`VoltaLock`对象超出作用域，锁将被释放给其他进程。
 pub struct VoltaLock {
-    // Private field ensures that this cannot be created except for with the `acquire()` method
+    // 私有字段确保这只能通过`acquire()`方法创建
     _private: PhantomData<()>,
 }
 
@@ -64,27 +58,26 @@ impl VoltaLock {
             .lock()
             .with_context(|| ErrorKind::LockAcquireError)?;
 
-        // Check if there is an active lock for this process. If so, increment
-        // the count of active locks. If not, create a file lock and initialize
-        // the state with a count of 1
+        // 检查此进程是否有活动锁。如果有，增加活动锁的计数。
+        // 如果没有，创建文件锁并将状态初始化为计数1
         match &mut *state {
             Some(inner) => {
                 inner.count += 1;
             }
             None => {
                 let path = volta_home()?.root().join(LOCK_FILE);
-                debug!("Acquiring lock on Volta directory: {}", path.display());
+                debug!("正在获取Volta目录的锁: {}", path.display());
 
                 let file = OpenOptions::new()
                     .write(true)
                     .create(true)
                     .open(path)
                     .with_context(|| ErrorKind::LockAcquireError)?;
-                // First we try to lock the file without blocking. If that fails, then we show a spinner
-                // and block until the lock completes.
+                // 首先我们尝试不阻塞地锁定文件。如果失败，则显示一个spinner
+                // 并阻塞直到锁定完成。
                 if file.try_lock_exclusive().is_err() {
-                    let spinner = progress_spinner("Waiting for file lock on Volta directory");
-                    // Note: Blocks until the file can be locked
+                    let spinner = progress_spinner("等待Volta目录的文件锁");
+                    // 注意：阻塞直到文件可以被锁定
                     let lock_result = file
                         .lock_exclusive()
                         .with_context(|| ErrorKind::LockAcquireError);
@@ -104,14 +97,14 @@ impl VoltaLock {
 
 impl Drop for VoltaLock {
     fn drop(&mut self) {
-        // On drop, decrement the count of active locks. If the count is 1,
-        // then this is the last active lock, so instead unlock the file and
-        // clear out the lock state.
+        // 在drop时，减少活动锁的计数。如果计数为1，
+        // 则这是最后一个活动锁，所以解锁文件并
+        // 清除锁状态。
         if let Ok(mut state) = LOCK_STATE.lock() {
             match &mut *state {
                 Some(inner) => {
                     if inner.count == 1 {
-                        debug!("Unlocking Volta Directory");
+                        debug!("解锁Volta目录");
                         let _ = inner.file.unlock();
                         *state = None;
                     } else {
@@ -119,7 +112,7 @@ impl Drop for VoltaLock {
                     }
                 }
                 None => {
-                    debug!("Unexpected unlock of Volta directory when it wasn't locked");
+                    debug!("意外解锁未锁定的Volta目录");
                 }
             }
         }

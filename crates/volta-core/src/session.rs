@@ -1,6 +1,5 @@
-//! Provides the `Session` type, which represents the user's state during an
-//! execution of a Volta tool, including their current directory, Volta
-//! hook configuration, and the state of the local inventory.
+//! 提供 `Session` 类型，表示用户在执行 Volta 工具期间的状态，
+//! 包括他们的当前目录、Volta 钩子配置和本地库存的状态。
 
 use std::fmt::{self, Display, Formatter};
 use std::process::exit;
@@ -13,33 +12,35 @@ use crate::project::{LazyProject, Project};
 use crate::toolchain::{LazyToolchain, Toolchain};
 use log::debug;
 
+// 活动类型枚举，表示不同的 Volta 操作
 #[derive(Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 pub enum ActivityKind {
-    Fetch,
-    Install,
-    Uninstall,
-    List,
-    Current,
-    Default,
-    Pin,
-    Node,
-    Npm,
-    Npx,
-    Pnpm,
-    Yarn,
-    Volta,
-    Tool,
-    Help,
-    Version,
-    Binary,
-    Shim,
-    Completions,
-    Which,
-    Setup,
-    Run,
-    Args,
+    Fetch,       // 获取
+    Install,     // 安装
+    Uninstall,   // 卸载
+    List,        // 列表
+    Current,     // 当前
+    Default,     // 默认
+    Pin,         // 固定
+    Node,        // Node
+    Npm,         // Npm
+    Npx,         // Npx
+    Pnpm,        // Pnpm
+    Yarn,        // Yarn
+    Volta,       // Volta
+    Tool,        // 工具
+    Help,        // 帮助
+    Version,     // 版本
+    Binary,      // 二进制
+    Shim,        // 垫片
+    Completions, // 补全
+    Which,       // 查找
+    Setup,       // 设置
+    Run,         // 运行
+    Args,        // 参数
 }
 
+// 为 ActivityKind 实现 Display trait
 impl Display for ActivityKind {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), fmt::Error> {
         let s = match self {
@@ -71,14 +72,12 @@ impl Display for ActivityKind {
     }
 }
 
-/// Represents the user's state during an execution of a Volta tool. The session
-/// encapsulates a number of aspects of the environment in which the tool was
-/// invoked, including:
+/// 表示用户在执行 Volta 工具期间的状态。会话封装了工具调用环境的多个方面，包括：
 ///
-/// - the current directory
-/// - the Node project tree that contains the current directory (if any)
-/// - the Volta hook configuration
-/// - the inventory of locally-fetched Volta tools
+/// - 当前目录
+/// - 包含当前目录的 Node 项目树（如果有）
+/// - Volta 钩子配置
+/// - 本地获取的 Volta 工具库存
 pub struct Session {
     hooks: LazyHookConfig,
     toolchain: LazyToolchain,
@@ -87,7 +86,7 @@ pub struct Session {
 }
 
 impl Session {
-    /// Constructs a new `Session`.
+    /// 构造一个新的 `Session`。
     pub fn init() -> Session {
         Session {
             hooks: LazyHookConfig::init(),
@@ -97,22 +96,22 @@ impl Session {
         }
     }
 
-    /// Produces a reference to the current Node project, if any.
+    /// 获取当前 Node 项目的引用（如果有）。
     pub fn project(&self) -> Fallible<Option<&Project>> {
         self.project.get()
     }
 
-    /// Produces a mutable reference to the current Node project, if any.
+    /// 获取当前 Node 项目的可变引用（如果有）。
     pub fn project_mut(&mut self) -> Fallible<Option<&mut Project>> {
         self.project.get_mut()
     }
 
-    /// Returns the user's default platform, if any
+    /// 返回用户的默认平台（如果有）。
     pub fn default_platform(&self) -> Fallible<Option<&PlatformSpec>> {
         self.toolchain.get().map(Toolchain::platform)
     }
 
-    /// Returns the current project's pinned platform image, if any.
+    /// 返回当前项目的固定平台镜像（如果有）。
     pub fn project_platform(&self) -> Fallible<Option<&PlatformSpec>> {
         if let Some(project) = self.project()? {
             return Ok(project.platform());
@@ -120,20 +119,22 @@ impl Session {
         Ok(None)
     }
 
-    /// Produces a reference to the current toolchain (default platform specification)
+    /// 获取当前工具链（默认平台规范）的引用。
     pub fn toolchain(&self) -> Fallible<&Toolchain> {
         self.toolchain.get()
     }
 
-    /// Produces a mutable reference to the current toolchain
+    /// 获取当前工具链的可变引用。
     pub fn toolchain_mut(&mut self) -> Fallible<&mut Toolchain> {
         self.toolchain.get_mut()
     }
 
-    /// Produces a reference to the hook configuration
+    /// 获取钩子配置的引用。
     pub fn hooks(&self) -> Fallible<&HookConfig> {
         self.hooks.get(self.project()?)
     }
+
+    // 以下方法用于添加不同类型的事件到事件日志
 
     pub fn add_event_start(&mut self, activity_kind: ActivityKind) {
         self.event_log.add_event_start(activity_kind)
@@ -148,6 +149,7 @@ impl Session {
         self.event_log.add_event_error(activity_kind, error)
     }
 
+    // 发布事件日志
     fn publish_to_event_log(self) {
         let Self {
             project,
@@ -165,16 +167,18 @@ impl Session {
                 event_log.publish(plugin);
             }
             Err(e) => {
-                debug!("Unable to publish event log.\n{}", e);
+                debug!("无法发布事件日志。\n{}", e);
             }
         }
     }
 
+    // 退出程序并发布事件日志
     pub fn exit(self, code: ExitCode) -> ! {
         self.publish_to_event_log();
         code.exit();
     }
 
+    // 退出工具并发布事件日志
     pub fn exit_tool(self, code: i32) -> ! {
         self.publish_to_event_log();
         exit(code);
@@ -188,6 +192,7 @@ pub mod tests {
     use std::env;
     use std::path::PathBuf;
 
+    // 获取测试固件路径
     fn fixture_path(fixture_dir: &str) -> PathBuf {
         let mut cargo_manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         cargo_manifest_dir.push("fixtures");
@@ -197,20 +202,20 @@ pub mod tests {
 
     #[test]
     fn test_in_pinned_project() {
+        // 测试固定项目
         let project_pinned = fixture_path("basic");
-        env::set_current_dir(project_pinned).expect("Could not set current directory");
+        env::set_current_dir(project_pinned).expect("无法设置当前目录");
         let pinned_session = Session::init();
-        let pinned_platform = pinned_session
-            .project_platform()
-            .expect("Couldn't create Project");
+        let pinned_platform = pinned_session.project_platform().expect("无法创建 Project");
         assert!(pinned_platform.is_some());
 
+        // 测试未固定项目
         let project_unpinned = fixture_path("no_toolchain");
-        env::set_current_dir(project_unpinned).expect("Could not set current directory");
+        env::set_current_dir(project_unpinned).expect("无法设置当前目录");
         let unpinned_session = Session::init();
         let unpinned_platform = unpinned_session
             .project_platform()
-            .expect("Couldn't create Project");
+            .expect("无法创建 Project");
         assert!(unpinned_platform.is_none());
     }
 }

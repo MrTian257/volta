@@ -11,18 +11,18 @@ use crate::session::Session;
 use crate::tool::package::BinConfig;
 use log::debug;
 
-/// Determine the correct command to run for a 3rd-party binary
+/// 确定第三方二进制文件的正确运行命令
 ///
-/// Will detect if we should delegate to the project-local version or use the default version
+/// 将检测是否应该委托给项目本地版本或使用默认版本
 pub(super) fn command(exe: &OsStr, args: &[OsString], session: &mut Session) -> Fallible<Executor> {
     let bin = exe.to_string_lossy().to_string();
-    // First try to use the project toolchain
+    // 首先尝试使用项目工具链
     if let Some(project) = session.project()? {
-        // Check if the executable is a direct dependency
+        // 检查可执行文件是否为直接依赖
         if project.has_direct_bin(exe)? {
             match project.find_bin(exe) {
                 Some(path_to_bin) => {
-                    debug!("Found {} in project at '{}'", bin, path_to_bin.display());
+                    debug!("在项目中找到 {} 位于 '{}'", bin, path_to_bin.display());
 
                     let platform = Platform::current(session)?;
                     return Ok(ToolCommand::new(
@@ -35,10 +35,7 @@ pub(super) fn command(exe: &OsStr, args: &[OsString], session: &mut Session) -> 
                 }
                 None => {
                     if project.needs_yarn_run() {
-                        debug!(
-                            "Project needs to use yarn to run command, calling {} with 'yarn'",
-                            bin
-                        );
+                        debug!("项目需要使用 yarn 运行命令，使用 'yarn' 调用 {}", bin);
                         let platform = Platform::current(session)?;
                         let mut exe_and_args = vec![exe.to_os_string()];
                         exe_and_args.extend_from_slice(args);
@@ -60,10 +57,10 @@ pub(super) fn command(exe: &OsStr, args: &[OsString], session: &mut Session) -> 
         }
     }
 
-    // Try to use the default toolchain
+    // 尝试使用默认工具链
     if let Some(default_tool) = DefaultBinary::from_name(exe, session)? {
         debug!(
-            "Found default {} in '{}'",
+            "在 '{}' 中找到默认的 {}",
             bin,
             default_tool.bin_path.display()
         );
@@ -79,12 +76,12 @@ pub(super) fn command(exe: &OsStr, args: &[OsString], session: &mut Session) -> 
         return Ok(command.into());
     }
 
-    // At this point, the binary is not known to Volta, so we have no platform to use to execute it
-    // This should be rare, as anything we have a shim for should have a config file to load
+    // 此时，二进制文件对 Volta 未知，因此我们没有平台来执行它
+    // 这种情况应该很少见，因为任何我们有 shim 的东西都应该有一个配置文件来加载
     Ok(ToolCommand::new(exe, args, None, ToolKind::DefaultBinary(bin)).into())
 }
 
-/// Determine the execution context (PATH and failure error message) for a project-local binary
+/// 确定项目本地二进制文件的执行上下文（PATH 和失败错误消息）
 pub(super) fn local_execution_context(
     tool: String,
     platform: Option<Platform>,
@@ -110,7 +107,7 @@ pub(super) fn local_execution_context(
     }
 }
 
-/// Determine the execution context (PATH and failure error message) for a default binary
+/// 确定默认二进制文件的执行上下文（PATH 和失败错误消息）
 pub(super) fn default_execution_context(
     tool: String,
     platform: Option<Platform>,
@@ -133,10 +130,9 @@ pub(super) fn default_execution_context(
     }
 }
 
-/// Information about the location and execution context of default binaries
+/// 默认二进制文件的位置和执行上下文信息
 ///
-/// Fetched from the config files in the Volta directory, represents the binary that is executed
-/// when the user is outside of a project that has the given bin as a dependency.
+/// 从 Volta 目录中的配置文件获取，表示当用户在没有给定 bin 作为依赖项的项目之外执行时执行的二进制文件。
 pub struct DefaultBinary {
     pub bin_path: PathBuf,
     pub platform: Platform,
@@ -148,8 +144,8 @@ impl DefaultBinary {
         let mut bin_path = bin_config.manager.binary_dir(package_dir);
         bin_path.push(&bin_config.name);
 
-        // If the user does not have yarn set in the platform for this binary, use the default
-        // This is necessary because some tools (e.g. ember-cli with the `--yarn` option) invoke `yarn`
+        // 如果用户没有在此二进制文件的平台中设置 yarn，则使用默认值
+        // 这是必要的，因为某些工具（例如带有 `--yarn` 选项的 ember-cli）会调用 `yarn`
         let yarn = match bin_config.platform.yarn {
             Some(yarn) => Some(yarn),
             None => session
@@ -166,10 +162,9 @@ impl DefaultBinary {
         Ok(DefaultBinary { bin_path, platform })
     }
 
-    /// Load information about a default binary by name, if available
+    /// 通过名称加载默认二进制文件的信息（如果可用）
     ///
-    /// A `None` response here means that the tool information couldn't be found. Either the tool
-    /// name is not a valid UTF-8 string, or the tool config doesn't exist.
+    /// 这里的 `None` 响应意味着找不到工具信息。要么工具名称不是有效的 UTF-8 字符串，要么工具配置不存在。
     pub fn from_name(tool_name: &OsStr, session: &mut Session) -> Fallible<Option<Self>> {
         let bin_config_file = match tool_name.to_str() {
             Some(name) => volta_home()?.default_tool_bin_config(name),
@@ -183,9 +178,9 @@ impl DefaultBinary {
     }
 }
 
-/// Determine the value for NODE_PATH, with the shared lib directory prepended
+/// 确定 NODE_PATH 的值，在前面添加共享库目录
 ///
-/// This will ensure that global bins can `require` other global libs
+/// 这将确保全局 bin 可以 `require` 其他全局库
 fn shared_module_path() -> Fallible<OsString> {
     let node_path = match env::var("NODE_PATH") {
         Ok(path) => envoy::Var::from(path),

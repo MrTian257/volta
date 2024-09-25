@@ -1,6 +1,8 @@
+use log::info;
 use volta_core::error::{ErrorKind, ExitCode, Fallible};
 use volta_core::session::{ActivityKind, Session};
 use volta_core::tool;
+use volta_core::tool::Spec;
 use volta_core::version::VersionSpec;
 
 use crate::command::Command;
@@ -30,7 +32,7 @@ impl Command for Uninstall {
             };
         }
 
-        tool.uninstall()?;
+        tool.uninstall(session)?;
 
         session.add_event_end(ActivityKind::Uninstall, ExitCode::Success);
         Ok(ExitCode::Success)

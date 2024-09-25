@@ -1,4 +1,4 @@
-//! Events for the sessions in executables and shims and everything
+//! 可执行文件、shim 和其他所有内容的会话事件
 
 use std::env;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -10,7 +10,7 @@ use crate::hook::Publish;
 use crate::monitor::send_events;
 use crate::session::ActivityKind;
 
-// the Event data that is serialized to JSON and sent the plugin
+// 序列化为 JSON 并发送到插件的事件数据
 #[derive(Deserialize, Serialize)]
 pub struct Event {
     timestamp: u64,
@@ -57,25 +57,24 @@ impl EventKind {
     }
 }
 
-// returns the current number of milliseconds since the epoch
+// 返回自纪元以来的当前毫秒数
 fn unix_timestamp() -> u64 {
     let start = SystemTime::now();
-    let duration = start
-        .duration_since(UNIX_EPOCH)
-        .expect("Time went backwards");
+    let duration = start.duration_since(UNIX_EPOCH).expect("时间倒流了");
     let nanosecs_since_epoch = duration.as_secs() * 1_000_000_000 + duration.subsec_nanos() as u64;
     nanosecs_since_epoch / 1_000_000
 }
 
+// 获取错误环境信息
 fn get_error_env() -> ErrorEnv {
     let path = match env::var("PATH") {
         Ok(p) => p,
-        Err(_e) => "error: Unable to get path from environment".to_string(),
+        Err(_e) => "错误：无法从环境中获取路径".to_string(),
     };
     let argv = env::args().collect::<Vec<String>>().join(" ");
     let exec_path = match env::current_exe() {
         Ok(ep) => ep.display().to_string(),
-        Err(_e) => "error: Unable to get executable path from environment".to_string(),
+        Err(_e) => "错误：无法从环境中获取可执行文件路径".to_string(),
     };
 
     let info = os_info::get();
@@ -96,14 +95,17 @@ pub struct EventLog {
 }
 
 impl EventLog {
-    /// Constructs a new 'EventLog'
+    /// 构造一个新的 'EventLog'
     pub fn init() -> Self {
         EventLog { events: Vec::new() }
     }
 
+    // 添加开始事件
     pub fn add_event_start(&mut self, activity_kind: ActivityKind) {
         self.add_event(EventKind::Start, activity_kind)
     }
+
+    // 添加结束事件
     pub fn add_event_end(&mut self, activity_kind: ActivityKind, exit_code: ExitCode) {
         self.add_event(
             EventKind::End {
@@ -112,9 +114,13 @@ impl EventLog {
             activity_kind,
         )
     }
+
+    // 添加工具结束事件
     pub fn add_event_tool_end(&mut self, activity_kind: ActivityKind, exit_code: i32) {
         self.add_event(EventKind::ToolEnd { exit_code }, activity_kind)
     }
+
+    // 添加错误事件
     pub fn add_event_error(&mut self, activity_kind: ActivityKind, error: &VoltaError) {
         self.add_event(
             EventKind::Error {
@@ -125,6 +131,8 @@ impl EventLog {
             activity_kind,
         )
     }
+
+    // 添加参数事件
     pub fn add_event_args(&mut self) {
         let argv = env::args_os()
             .enumerate()
@@ -138,14 +146,16 @@ impl EventLog {
         self.add_event(EventKind::Args { argv }, ActivityKind::Args)
     }
 
+    // 添加事件到日志
     fn add_event(&mut self, event_kind: EventKind, activity_kind: ActivityKind) {
         let event = event_kind.into_event(activity_kind);
         self.events.push(event);
     }
 
+    // 发布事件日志
     pub fn publish(&self, plugin: Option<&Publish>) {
         match plugin {
-            // Note: This call to unimplemented is left in, as it's not a Fallible operation that can use ErrorKind::Unimplemented
+            // 注意：这个未实现的调用保留在这里，因为它不是可以使用 ErrorKind::Unimplemented 的 Fallible 操作
             Some(Publish::Url(_)) => unimplemented!(),
             Some(Publish::Bin(command)) => {
                 send_events(command, &self.events);
@@ -190,7 +200,7 @@ pub mod tests {
         event_log.add_event_error(ActivityKind::Install, &error);
         assert_eq!(event_log.events.len(), 4);
         assert_eq!(event_log.events[3].name, "install");
-        // not checking the error because it has too much machine-specific info
+        // 不检查错误，因为它包含太多特定于机器的信息
 
         event_log.add_event_args();
         assert_eq!(event_log.events.len(), 5);
@@ -202,7 +212,7 @@ pub mod tests {
             }
             _ => {
                 panic!(
-                    "Expected EventKind::Args {{ argv }}, Got: {:?}",
+                    "预期 EventKind::Args {{ argv }}，得到：{:?}",
                     event_log.events[4].event
                 );
             }

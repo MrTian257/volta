@@ -1,4 +1,4 @@
-//! Provides utilities for modifying shims for 3rd-party executables
+//! 提供修改第三方可执行文件垫片的实用工具
 
 use std::collections::HashSet;
 use std::fs;
@@ -13,10 +13,11 @@ use log::debug;
 
 pub use platform::create;
 
+// 为指定目录重新生成垫片
 pub fn regenerate_shims_for_dir(dir: &Path) -> Fallible<()> {
-    // Acquire a lock on the Volta directory, if possible, to prevent concurrent changes
+    // 如果可能，获取Volta目录的锁，以防止并发更改
     let _lock = VoltaLock::acquire();
-    debug!("Rebuilding shims for directory: {}", dir.display());
+    debug!("正在为目录重建垫片: {}", dir.display());
     for shim_name in get_shim_list_deduped(dir)?.iter() {
         delete(shim_name)?;
         create(shim_name)?;
@@ -25,6 +26,7 @@ pub fn regenerate_shims_for_dir(dir: &Path) -> Fallible<()> {
     Ok(())
 }
 
+// 获取去重后的垫片列表
 fn get_shim_list_deduped(dir: &Path) -> Fallible<HashSet<String>> {
     let contents = read_dir_eager(dir).with_context(|| ErrorKind::ReadDirError {
         dir: dir.to_owned(),
@@ -34,6 +36,7 @@ fn get_shim_list_deduped(dir: &Path) -> Fallible<HashSet<String>> {
     {
         let mut shims: HashSet<String> =
             contents.filter_map(platform::entry_to_shim_name).collect();
+        // 添加默认的垫片
         shims.insert("node".into());
         shims.insert("npm".into());
         shims.insert("npx".into());
@@ -45,19 +48,21 @@ fn get_shim_list_deduped(dir: &Path) -> Fallible<HashSet<String>> {
 
     #[cfg(windows)]
     {
-        // On Windows, the default shims are installed in Program Files, so we don't need to generate them here
+        // 在Windows上，默认垫片安装在Program Files中，所以我们不需要在这里生成它们
         Ok(contents.filter_map(platform::entry_to_shim_name).collect())
     }
 }
 
+// 垫片操作的结果枚举
 #[derive(PartialEq, Eq)]
 pub enum ShimResult {
-    Created,
-    AlreadyExists,
-    Deleted,
-    DoesntExist,
+    Created,       // 创建成功
+    AlreadyExists, // 已经存在
+    Deleted,       // 删除成功
+    DoesntExist,   // 不存在
 }
 
+// 删除指定的垫片
 pub fn delete(shim_name: &str) -> Fallible<ShimResult> {
     let shim = volta_home()?.shim_file(shim_name);
 
@@ -83,11 +88,10 @@ pub fn delete(shim_name: &str) -> Fallible<ShimResult> {
 
 #[cfg(unix)]
 mod platform {
-    //! Unix-specific shim utilities
+    //! Unix特定的垫片工具
     //!
-    //! On macOS and Linux, creating a shim involves creating a symlink to the `volta-shim`
-    //! executable. Additionally, filtering the shims from directory entries means looking
-    //! for symlinks and ignoring the actual binaries
+    //! 在macOS和Linux上，创建垫片涉及创建到`volta-shim`可执行文件的符号链接。
+    //! 此外，从目录条目中过滤垫片意味着查找符号链接并忽略实际的二进制文件。
     use std::ffi::OsStr;
     use std::fs::{DirEntry, Metadata};
     use std::io;
@@ -97,6 +101,7 @@ mod platform {
     use crate::fs::symlink_file;
     use crate::layout::{volta_home, volta_install};
 
+    // 创建垫片
     pub fn create(shim_name: &str) -> Fallible<ShimResult> {
         let executable = volta_install()?.shim_executable();
         let shim = volta_home()?.shim_file(shim_name);
@@ -118,6 +123,7 @@ mod platform {
         }
     }
 
+    // 从目录条目获取垫片名称
     pub fn entry_to_shim_name((entry, metadata): (DirEntry, Metadata)) -> Option<String> {
         if metadata.file_type().is_symlink() {
             entry
@@ -133,16 +139,14 @@ mod platform {
 
 #[cfg(windows)]
 mod platform {
-    //! Windows-specific shim utilities
+    //! Windows特定的垫片工具
     //!
-    //! On Windows, creating a shim involves creating a small .cmd script, rather than a symlink.
-    //! This allows us to create shims without requiring administrator privileges or developer
-    //! mode. Also, to support Git Bash, we create a similar script with bash syntax that doesn't
-    //! have a file extension. This allows Powershell and Cmd to ignore it, while Bash detects it
-    //! as an executable script.
+    //! 在Windows上，创建垫片涉及创建一个小的.cmd脚本，而不是符号链接。
+    //! 这允许我们创建垫片而无需管理员权限或开发者模式。此外，为了支持Git Bash，
+    //! 我们创建一个类似的具有bash语法的脚本，该脚本没有文件扩展名。
+    //! 这允许Powershell和Cmd忽略它，而Bash将其检测为可执行脚本。
     //!
-    //! Finally, filtering directory entries to find the shim files involves looking for the .cmd
-    //! files.
+    //! 最后，过滤目录条目以查找垫片文件涉及查找.cmd文件。
     use std::ffi::OsStr;
     use std::fs::{write, DirEntry, Metadata};
 
@@ -151,13 +155,16 @@ mod platform {
     use crate::fs::remove_file_if_exists;
     use crate::layout::volta_home;
 
+    // CMD脚本内容
     const SHIM_SCRIPT_CONTENTS: &str = r#"@echo off
 volta run %~n0 %*
 "#;
 
+    // Git Bash脚本内容
     const GIT_BASH_SCRIPT_CONTENTS: &str = r#"#!/bin/bash
 volta run "$(basename $0)" "$@""#;
 
+    // 创建垫片
     pub fn create(shim_name: &str) -> Fallible<ShimResult> {
         let shim = volta_home()?.shim_file(shim_name);
 
@@ -176,6 +183,7 @@ volta run "$(basename $0)" "$@""#;
         Ok(ShimResult::Created)
     }
 
+    // 从目录条目获取垫片名称
     pub fn entry_to_shim_name((entry, _): (DirEntry, Metadata)) -> Option<String> {
         let path = entry.path();
 
@@ -188,6 +196,7 @@ volta run "$(basename $0)" "$@""#;
         }
     }
 
+    // 删除Git Bash脚本
     pub fn delete_git_bash_script(shim_name: &str) -> Fallible<()> {
         let script_path = volta_home()?.shim_git_bash_script_file(shim_name);
         remove_file_if_exists(script_path).with_context(|| ErrorKind::ShimRemoveError {

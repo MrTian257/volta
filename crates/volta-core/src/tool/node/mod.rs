@@ -16,112 +16,114 @@ use node_semver::Version;
 mod fetch;
 mod metadata;
 mod resolve;
+mod uninstall;
 
 pub use fetch::load_default_npm_version;
 pub use resolve::resolve;
+pub use uninstall::uninstall;
 
+// 根据不同的操作系统和架构组合定义相关常量
 cfg_if! {
     if #[cfg(all(target_os = "windows", target_arch = "x86"))] {
-        /// The OS component of a Node distro filename
+        /// Node 发行版文件名中的操作系统组件
         pub const NODE_DISTRO_OS: &str = "win";
-        /// The architecture component of a Node distro filename
+        /// Node 发行版文件名中的架构组件
         pub const NODE_DISTRO_ARCH: &str = "x86";
-        /// The extension for Node distro files
+        /// Node 发行版文件的扩展名
         pub const NODE_DISTRO_EXTENSION: &str = "zip";
-        /// The file identifier in the Node index `files` array
+        /// Node 索引 `files` 数组中的文件标识符
         pub const NODE_DISTRO_IDENTIFIER: &str = "win-x86-zip";
     } else if #[cfg(all(target_os = "windows", target_arch = "x86_64"))] {
-        /// The OS component of a Node distro filename
+        /// Node 发行版文件名中的操作系统组件
         pub const NODE_DISTRO_OS: &str = "win";
-        /// The architecture component of a Node distro filename
+        /// Node 发行版文件名中的架构组件
         pub const NODE_DISTRO_ARCH: &str = "x64";
-        /// The extension for Node distro files
+        /// Node 发行版文件的扩展名
         pub const NODE_DISTRO_EXTENSION: &str = "zip";
-        /// The file identifier in the Node index `files` array
+        /// Node 索引 `files` 数组中的文件标识符
         pub const NODE_DISTRO_IDENTIFIER: &str = "win-x64-zip";
     } else if #[cfg(all(target_os = "windows", target_arch = "aarch64"))] {
-        /// The OS component of a Node distro filename
+        /// Node 发行版文件名中的操作系统组件
         pub const NODE_DISTRO_OS: &str = "win";
-        /// The architecture component of a Node distro filename
+        /// Node 发行版文件名中的架构组件
         pub const NODE_DISTRO_ARCH: &str = "arm64";
-        /// The extension for Node distro files
+        /// Node 发行版文件的扩展名
         pub const NODE_DISTRO_EXTENSION: &str = "zip";
-        /// The file identifier in the Node index `files` array
+        /// Node 索引 `files` 数组中的文件标识符
         pub const NODE_DISTRO_IDENTIFIER: &str = "win-arm64-zip";
 
-        // NOTE: Node support for pre-built ARM64 binaries on Windows was added in major version 20
-        // For versions prior to that, we need to fall back on the x64 binaries via emulator
+        // 注意：Node 对 Windows ARM64 预构建二进制文件的支持从主版本 20 开始添加
+        // 对于之前的版本，我们需要通过模拟器回退到 x64 二进制文件
 
-        /// The fallback architecture component of a Node distro filename
+        /// Node 发行版文件名中的回退架构组件
         pub const NODE_DISTRO_ARCH_FALLBACK: &str = "x64";
-        /// The fallback file identifier in the Node index `files` array
+        /// Node 索引 `files` 数组中的回退文件标识符
         pub const NODE_DISTRO_IDENTIFIER_FALLBACK: &str = "win-x64-zip";
     } else if #[cfg(all(target_os = "macos", target_arch = "x86_64"))] {
-        /// The OS component of a Node distro filename
+        /// Node 发行版文件名中的操作系统组件
         pub const NODE_DISTRO_OS: &str = "darwin";
-        /// The architecture component of a Node distro filename
+        /// Node 发行版文件名中的架构组件
         pub const NODE_DISTRO_ARCH: &str = "x64";
-        /// The extension for Node distro files
+        /// Node 发行版文件的扩展名
         pub const NODE_DISTRO_EXTENSION: &str = "tar.gz";
-        /// The file identifier in the Node index `files` array
+        /// Node 索引 `files` 数组中的文件标识符
         pub const NODE_DISTRO_IDENTIFIER: &str = "osx-x64-tar";
     } else if #[cfg(all(target_os = "macos", target_arch = "aarch64"))] {
-        /// The OS component of a Node distro filename
+        /// Node 发行版文件名中的操作系统组件
         pub const NODE_DISTRO_OS: &str = "darwin";
-        /// The architecture component of a Node distro filename
+        /// Node 发行版文件名中的架构组件
         pub const NODE_DISTRO_ARCH: &str = "arm64";
-        /// The extension for Node distro files
+        /// Node 发行版文件的扩展名
         pub const NODE_DISTRO_EXTENSION: &str = "tar.gz";
-        /// The file identifier in the Node index `files` array
+        /// Node 索引 `files` 数组中的文件标识符
         pub const NODE_DISTRO_IDENTIFIER: &str = "osx-arm64-tar";
 
-        // NOTE: Node support for pre-built Apple Silicon binaries was added in major version 16
-        // For versions prior to that, we need to fall back on the x64 binaries via Rosetta 2
+        // 注意：Node 对 Apple Silicon 预构建二进制文件的支持从主版本 16 开始添加
+        // 对于之前的版本，我们需要通过 Rosetta 2 回退到 x64 二进制文件
 
-        /// The fallback architecture component of a Node distro filename
+        /// Node 发行版文件名中的回退架构组件
         pub const NODE_DISTRO_ARCH_FALLBACK: &str = "x64";
-        /// The fallback file identifier in the Node index `files` array
+        /// Node 索引 `files` 数组中的回退文件标识符
         pub const NODE_DISTRO_IDENTIFIER_FALLBACK: &str = "osx-x64-tar";
     } else if #[cfg(all(target_os = "linux", target_arch = "x86_64"))] {
-        /// The OS component of a Node distro filename
+        /// Node 发行版文件名中的操作系统组件
         pub const NODE_DISTRO_OS: &str = "linux";
-        /// The architecture component of a Node distro filename
+        /// Node 发行版文件名中的架构组件
         pub const NODE_DISTRO_ARCH: &str = "x64";
-        /// The extension for Node distro files
+        /// Node 发行版文件的扩展名
         pub const NODE_DISTRO_EXTENSION: &str = "tar.gz";
-        /// The file identifier in the Node index `files` array
+        /// Node 索引 `files` 数组中的文件标识符
         pub const NODE_DISTRO_IDENTIFIER: &str = "linux-x64";
     } else if #[cfg(all(target_os = "linux", target_arch = "aarch64"))] {
-        /// The OS component of a Node distro filename
+        /// Node 发行版文件名中的操作系统组件
         pub const NODE_DISTRO_OS: &str = "linux";
-        /// The architecture component of a Node distro filename
+        /// Node 发行版文件名中的架构组件
         pub const NODE_DISTRO_ARCH: &str = "arm64";
-        /// The extension for Node distro files
+        /// Node 发行版文件的扩展名
         pub const NODE_DISTRO_EXTENSION: &str = "tar.gz";
-        /// The file identifier in the Node index `files` array
+        /// Node 索引 `files` 数组中的文件标识符
         pub const NODE_DISTRO_IDENTIFIER: &str = "linux-arm64";
     } else if #[cfg(all(target_os = "linux", target_arch = "arm"))] {
-        /// The OS component of a Node distro filename
+        /// Node 发行版文件名中的操作系统组件
         pub const NODE_DISTRO_OS: &str = "linux";
-        /// The architecture component of a Node distro filename
+        /// Node 发行版文件名中的架构组件
         pub const NODE_DISTRO_ARCH: &str = "armv7l";
-        /// The extension for Node distro files
+        /// Node 发行版文件的扩展名
         pub const NODE_DISTRO_EXTENSION: &str = "tar.gz";
-        /// The file identifier in the Node index `files` array
+        /// Node 索引 `files` 数组中的文件标识符
         pub const NODE_DISTRO_IDENTIFIER: &str = "linux-armv7l";
     } else {
-        compile_error!("Unsuppored operating system + architecture combination");
+        compile_error!("不支持的操作系统 + 架构组合");
     }
 }
 
-/// A full Node version including not just the version of Node itself
-/// but also the specific version of npm installed globally with that
-/// Node installation.
+/// 完整的 Node 版本，不仅包括 Node 本身的版本，
+/// 还包括与该 Node 安装一起全局安装的特定 npm 版本。
 #[derive(Clone, Debug)]
 pub struct NodeVersion {
-    /// The version of Node itself.
+    /// Node 本身的版本。
     pub runtime: Version,
-    /// The npm version globally installed with the Node distro.
+    /// 与 Node 发行版一起全局安装的 npm 版本。
     pub npm: Version,
 }
 
@@ -136,7 +138,7 @@ impl Display for NodeVersion {
     }
 }
 
-/// The Tool implementation for fetching and installing Node
+/// 用于获取和安装 Node 的 Tool 实现
 pub struct Node {
     pub(super) version: Version,
 }
@@ -146,6 +148,7 @@ impl Node {
         Node { version }
     }
 
+    // 为不需要回退的平台定义 archive_basename 方法
     #[cfg(not(any(
         all(target_os = "macos", target_arch = "aarch64"),
         all(target_os = "windows", target_arch = "aarch64")
@@ -154,10 +157,11 @@ impl Node {
         format!("node-v{}-{}-{}", version, NODE_DISTRO_OS, NODE_DISTRO_ARCH)
     }
 
+    // 为 macOS ARM64 平台定义 archive_basename 方法
     #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
     pub fn archive_basename(version: &Version) -> String {
-        // Note: Node began shipping pre-built binaries for Apple Silicon with Major version 16
-        // Prior to that, we need to fall back on the x64 binaries
+        // 注意：Node 从主版本 16 开始为 Apple Silicon 提供预构建二进制文件
+        // 在此之前，我们需要回退到 x64 二进制文件
         format!(
             "node-v{}-{}-{}",
             version,
@@ -170,10 +174,11 @@ impl Node {
         )
     }
 
+    // 为 Windows ARM64 平台定义 archive_basename 方法
     #[cfg(all(target_os = "windows", target_arch = "aarch64"))]
     pub fn archive_basename(version: &Version) -> String {
-        // Note: Node began shipping pre-built binaries for Windows ARM with Major version 20
-        // Prior to that, we need to fall back on the x64 binaries
+        // 注意：Node 从主版本 20 开始为 Windows ARM 提供预构建二进制文件
+        // 在此之前，我们需要回退到 x64 二进制文件
         format!(
             "node-v{}-{}-{}",
             version,
@@ -218,29 +223,30 @@ impl Tool for Node {
         Ok(())
     }
     fn install(self: Box<Self>, session: &mut Session) -> Fallible<()> {
-        // Acquire a lock on the Volta directory, if possible, to prevent concurrent changes
+        // 如果可能，获取 Volta 目录的锁，以防止并发更改
         let _lock = VoltaLock::acquire();
         let node_version = self.ensure_fetched(session)?;
 
         let default_toolchain = session.toolchain_mut()?;
         default_toolchain.set_active_node(&self.version)?;
 
-        // If the user has a default version of `npm`, we shouldn't show the "(with npm@X.Y.ZZZ)" text in the success message
-        // Instead we should check if the bundled version is higher than the default and inform the user
-        // Note: The previous line ensures that there will be a default platform
+        // 如果用户有默认版本的 `npm`，我们不应该在成功消息中显示 "(with npm@X.Y.ZZZ)" 文本
+        // 相反，我们应该检查捆绑版本是否高于默认版本，并通知用户
+        // 注意：前面的行确保会有一个默认平台
         if let Some(default_npm) = &default_toolchain.platform().unwrap().npm {
-            info_installed(&self); // includes node version
+            info_installed(&self); // 包括 node 版本
 
             if node_version.npm > *default_npm {
-                info!("{} this version of Node includes {}, which is higher than your default version ({}).
-      To use the version included with Node, run `volta install npm@bundled`",
+                info!(
+                    "{} 此版本的 Node 包含 {}，它高于您的默认版本 ({})。
+      要使用 Node 附带的版本，请运行 `volta install npm@bundled`",
                     note_prefix(),
                     tool_version("npm", node_version.npm),
                     default_npm.to_string()
                 );
             }
         } else {
-            info_installed(node_version); // includes node and npm version
+            info_installed(node_version); // 包括 node 和 npm 版本
         }
 
         check_shim_reachable("node");
@@ -255,26 +261,27 @@ impl Tool for Node {
         if session.project()?.is_some() {
             let node_version = self.ensure_fetched(session)?;
 
-            // Note: We know this will succeed, since we checked above
+            // 注意：我们知道这将成功，因为我们在上面检查过
             let project = session.project_mut()?.unwrap();
             project.pin_node(self.version.clone())?;
 
-            // If the user has a pinned version of `npm`, we shouldn't show the "(with npm@X.Y.ZZZ)" text in the success message
-            // Instead we should check if the bundled version is higher than the pinned and inform the user
-            // Note: The pin operation guarantees there will be a platform
+            // 如果用户有固定版本的 `npm`，我们不应该在成功消息中显示 "(with npm@X.Y.ZZZ)" 文本
+            // 相反，我们应该检查捆绑版本是否高于固定版本，并通知用户
+            // 注意：固定操作保证会有一个平台
             if let Some(pinned_npm) = &project.platform().unwrap().npm {
-                info_pinned(self); // includes node version
+                info_pinned(self); // 包括 node 版本
 
                 if node_version.npm > *pinned_npm {
-                    info!("{} this version of Node includes {}, which is higher than your pinned version ({}).
-      To use the version included with Node, run `volta pin npm@bundled`",
+                    info!(
+                        "{} 此版本的 Node 包含 {}，它高于您的固定版本 ({})。
+      要使用 Node 附带的版本，请运行 `volta pin npm@bundled`",
                         note_prefix(),
                         tool_version("npm", node_version.npm),
                         pinned_npm.to_string()
                     );
                 }
             } else {
-                info_pinned(node_version); // includes node and npm version
+                info_pinned(node_version); // 包括 node 和 npm 版本
             }
 
             Ok(())

@@ -12,6 +12,7 @@ use crate::VOLTA_FEATURE_PNPM;
 use cfg_if::cfg_if;
 use log::{debug, info};
 
+// 导入各种工具模块
 pub mod node;
 pub mod npm;
 pub mod package;
@@ -20,6 +21,8 @@ mod registry;
 mod serial;
 pub mod yarn;
 
+// 从各个模块中重新导出一些类型和函数
+use crate::tool::package::uninstall;
 pub use node::{
     load_default_npm_version, Node, NODE_DISTRO_ARCH, NODE_DISTRO_EXTENSION, NODE_DISTRO_OS,
 };
@@ -29,22 +32,27 @@ pub use pnpm::Pnpm;
 pub use registry::PackageDetails;
 pub use yarn::Yarn;
 
+// 调试日志：工具已经被获取，跳过下载
 fn debug_already_fetched<T: Display>(tool: T) {
     debug!("{} has already been fetched, skipping download", tool);
 }
 
+// 信息日志：工具已安装并设置为默认
 fn info_installed<T: Display>(tool: T) {
     info!("{} installed and set {tool} as default", success_prefix());
 }
 
+// 信息日志：工具已获取
 fn info_fetched<T: Display>(tool: T) {
     info!("{} fetched {tool}", success_prefix());
 }
 
+// 信息日志：工具已在 package.json 中固定
 fn info_pinned<T: Display>(tool: T) {
     info!("{} pinned {tool} in package.json", success_prefix());
 }
 
+// 信息日志：项目版本和默认版本的对比
 fn info_project_version<P, D>(project_version: P, default_version: D)
 where
     P: Display,
@@ -57,17 +65,17 @@ where
     );
 }
 
-/// Trait representing all of the actions that can be taken with a tool
+/// 表示可以对工具执行的所有操作的特征
 pub trait Tool: Display {
-    /// Fetch a Tool into the local inventory
+    /// 将工具获取到本地库存中
     fn fetch(self: Box<Self>, session: &mut Session) -> Fallible<()>;
-    /// Install a tool, making it the default so it is available everywhere on the user's machine
+    /// 安装工具，使其成为默认工具，在用户机器的任何地方都可用
     fn install(self: Box<Self>, session: &mut Session) -> Fallible<()>;
-    /// Pin a tool in the local project so that it is usable within the project
+    /// 在本地项目中固定工具，使其在项目中可用
     fn pin(self: Box<Self>, session: &mut Session) -> Fallible<()>;
 }
 
-/// Specification for a tool and its associated version.
+/// 工具及其关联版本的规范
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum Spec {
@@ -79,7 +87,7 @@ pub enum Spec {
 }
 
 impl Spec {
-    /// Resolve a tool spec into a fully realized Tool that can be fetched
+    /// 将工具规范解析为可以获取的完全实现的工具
     pub fn resolve(self, session: &mut Session) -> Fallible<Box<dyn Tool>> {
         match self {
             Spec::Node(version) => {
@@ -91,10 +99,8 @@ impl Spec {
                 None => Ok(Box::new(BundledNpm)),
             },
             Spec::Pnpm(version) => {
-                // If the pnpm feature flag is set, use the special-cased package manager logic
-                // to handle resolving (and ultimately fetching / installing) pnpm. If not, then
-                // fall back to the global package behavior, which was the case prior to pnpm
-                // support being added
+                // 如果设置了 pnpm 功能标志，使用特殊的包管理器逻辑来处理 pnpm 的解析（最终获取/安装）
+                // 如果没有设置，则回退到全局包行为，这是在添加 pnpm 支持之前的情况
                 if env::var_os(VOLTA_FEATURE_PNPM).is_some() {
                     let version = pnpm::resolve(version, session)?;
                     Ok(Box::new(Pnpm::new(version)))
@@ -107,7 +113,7 @@ impl Spec {
                 let version = yarn::resolve(version, session)?;
                 Ok(Box::new(Yarn::new(version)))
             }
-            // When using global package install, we allow the package manager to perform the version resolution
+            // 使用全局包安装时，我们允许包管理器执行版本解析
             Spec::Package(name, version) => {
                 let package = Package::new(name, version)?;
                 Ok(Box::new(package))
@@ -115,16 +121,12 @@ impl Spec {
         }
     }
 
-    /// Uninstall a tool, removing it from the local inventory
+    /// 卸载工具，从本地库存中移除它
     ///
-    /// This is implemented on Spec, instead of Resolved, because there is currently no need to
-    /// resolve the specific version before uninstalling a tool.
-    pub fn uninstall(self) -> Fallible<()> {
+    /// 这在 Spec 上实现，而不是在 Resolved 上实现，因为目前在卸载工具之前不需要解析特定版本。
+    pub fn uninstall(self, session: &mut Session) -> Fallible<()> {
         match self {
-            Spec::Node(_) => Err(ErrorKind::Unimplemented {
-                feature: "Uninstalling node".into(),
-            }
-            .into()),
+            Spec::Node(var) => node::uninstall(var, session),
             Spec::Npm(_) => Err(ErrorKind::Unimplemented {
                 feature: "Uninstalling npm".into(),
             }
@@ -147,7 +149,7 @@ impl Spec {
         }
     }
 
-    /// The name of the tool, without the version, used for messaging
+    /// 工具的名称，不包括版本，用于消息传递
     pub fn name(&self) -> &str {
         match self {
             Spec::Node(_) => "Node",
@@ -172,22 +174,22 @@ impl Display for Spec {
     }
 }
 
-/// Represents the result of checking if a tool is available locally or not
+/// 表示检查工具是否在本地可用的结果
 ///
-/// If a fetch is required, will include an exclusive lock on the Volta directory where possible
+/// 如果需要获取，将尽可能包含 Volta 目录的独占锁
 enum FetchStatus {
     AlreadyFetched,
     FetchNeeded(Option<VoltaLock>),
 }
 
-/// Uses the supplied `already_fetched` predicate to determine if a tool is available or not.
+/// 使用提供的 `already_fetched` 谓词来确定工具是否可用
 ///
-/// This uses double-checking logic, to correctly handle concurrent fetch requests:
+/// 这使用双重检查逻辑，以正确处理并发获取请求：
 ///
-/// - If `already_fetched` indicates that a fetch is needed, we acquire an exclusive lock on the Volta directory
-/// - Then, we check _again_, to confirm that no other process completed the fetch while we waited for the lock
+/// - 如果 `already_fetched` 表明需要获取，我们获取 Volta 目录的独占锁
+/// - 然后，我们再次检查，以确认没有其他进程在我们等待锁时完成了获取
 ///
-/// Note: If acquiring the lock fails, we proceed anyway, since the fetch is still necessary.
+/// 注意：如果获取锁失败，我们仍然继续，因为获取仍然是必要的。
 fn check_fetched<F>(already_fetched: F) -> Fallible<FetchStatus>
 where
     F: Fn() -> Fallible<bool>,
@@ -233,8 +235,8 @@ cfg_if!(
     }
 );
 
-/// Check if a newly-installed shim is first on the PATH. If it isn't, we want to inform the user
-/// that they'll want to move it to the start of PATH to make sure things work as expected.
+/// 检查新安装的 shim 是否在 PATH 中排在第一位。如果不是，我们想通知用户
+/// 他们需要将其移到 PATH 的开头，以确保一切按预期工作。
 pub fn check_shim_reachable(shim_name: &str) {
     let Some(expected_dir) = find_expected_shim_dir(shim_name) else {
         return;
@@ -263,21 +265,20 @@ pub fn check_shim_reachable(shim_name: &str) {
     }
 }
 
-/// Locate the base directory for the relevant shim in the Volta directories.
+/// 在 Volta 目录中定位相关 shim 的基本目录。
 ///
-/// On Unix, all of the shims, including the default ones, are installed in `VoltaHome::shim_dir`
+/// 在 Unix 上，所有的 shim，包括默认的 shim，都安装在 `VoltaHome::shim_dir` 中
 #[cfg(unix)]
 fn find_expected_shim_dir(_shim_name: &str) -> Option<PathBuf> {
     volta_home().ok().map(|home| home.shim_dir().to_owned())
 }
 
-/// Locate the base directory for the relevant shim in the Volta directories.
+/// 在 Volta 目录中定位相关 shim 的基本目录。
 ///
-/// On Windows, the default shims (node, npm, yarn, etc.) are installed in `Program Files`
-/// alongside the Volta binaries. To determine where we should be checking, we first look for the
-/// relevant shim inside of `VoltaHome::shim_dir`. If it's there, we use that directory. If it
-/// isn't, we assume it must be a default shim and return `VoltaInstall::root`, which is where
-/// Volta itself is installed.
+/// 在 Windows 上，默认的 shim（node、npm、yarn 等）与 Volta 二进制文件一起安装在 `Program Files` 中。
+/// 为了确定我们应该检查的位置，我们首先在 `VoltaHome::shim_dir` 中查找相关的 shim。
+/// 如果它在那里，我们使用那个目录。如果不在，我们假设它必须是一个默认的 shim，
+/// 并返回 `VoltaInstall::root`，这是 Volta 本身安装的位置。
 #[cfg(windows)]
 fn find_expected_shim_dir(shim_name: &str) -> Option<PathBuf> {
     use crate::layout::volta_install;
