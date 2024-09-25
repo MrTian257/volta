@@ -1,9 +1,9 @@
-//! Provides resolution of Node requirements into specific versions, using the NodeJS index
+//! 提供使用 NodeJS 索引将 Node 需求解析为特定版本的功能
 
+use std::env;
 use std::fs::File;
 use std::io::Write;
 use std::time::{Duration, SystemTime};
-use std::env;
 
 use super::super::registry_fetch_error;
 use super::metadata::{NodeEntry, NodeIndex, RawNodeIndex};
@@ -23,12 +23,12 @@ use headers::{CacheControl, Expires, HeaderMapExt};
 use log::debug;
 use node_semver::{Range, Version};
 
-// ISSUE (#86): Move public repository URLs to config file
+// 问题 (#86): 将公共仓库 URL 移至配置文件
 cfg_if! {
     if #[cfg(feature = "mock-network")] {
-        // TODO: We need to reconsider our mocking strategy in light of mockito deprecating the
-        // SERVER_URL constant: Since our acceptance tests run the binary in a separate process,
-        // we can't use `mockito::server_url()`, which relies on shared memory.
+        // TODO: 由于 mockito 弃用了 SERVER_URL 常量，我们需要重新考虑我们的模拟策略：
+        // 因为我们的验收测试在单独的进程中运行二进制文件，
+        // 我们不能使用 `mockito::server_url()`，它依赖于共享内存。
         #[allow(deprecated)]
         const SERVER_URL: &str = mockito::SERVER_URL;
         fn public_node_version_index() -> String {
@@ -36,7 +36,7 @@ cfg_if! {
         }
     } else {
         // NODE_MIRROR=https://mirrors.aliyun.com/nodejs-release
-        /// Returns the URL of the index of available Node versions on the public Node server.
+        /// 返回公共 Node 服务器上可用 Node 版本索引的 URL。
         fn public_node_version_index() -> String {
             // "https://mirrors.aliyun.com/nodejs-release/index.json".to_string()
             match env::var_os("ENV_NODE_MIRROR") {
@@ -47,6 +47,7 @@ cfg_if! {
     }
 }
 
+/// 解析 Node 版本
 pub fn resolve(matching: VersionSpec, session: &mut Session) -> Fallible<Version> {
     let hooks = session.hooks()?.node();
     match matching {
@@ -54,23 +55,23 @@ pub fn resolve(matching: VersionSpec, session: &mut Session) -> Fallible<Version
         VersionSpec::Exact(version) => Ok(version),
         VersionSpec::None | VersionSpec::Tag(VersionTag::Lts) => resolve_lts(hooks),
         VersionSpec::Tag(VersionTag::Latest) => resolve_latest(hooks),
-        // Node doesn't have "tagged" versions (apart from 'latest' and 'lts'), so custom tags will always be an error
+        // Node 没有"标记"版本（除了 'latest' 和 'lts'），所以自定义标记总是会出错
         VersionSpec::Tag(VersionTag::Custom(tag)) => {
             Err(ErrorKind::NodeVersionNotFound { matching: tag }.into())
         }
     }
 }
 
+/// 解析最新的 Node 版本
 fn resolve_latest(hooks: Option<&ToolHooks<Node>>) -> Fallible<Version> {
-    // NOTE: This assumes the registry always produces a list in sorted order
-    //       from newest to oldest. This should be specified as a requirement
-    //       when we document the plugin API.
+    // 注意：这假设注册表总是按从最新到最旧的顺序生成列表。
+    // 当我们记录插件 API 时，这应该被指定为一个要求。
     let url = match hooks {
         Some(&ToolHooks {
             latest: Some(ref hook),
             ..
         }) => {
-            debug!("Using node.latest hook to determine node index URL");
+            debug!("使用 node.latest 钩子确定 node 索引 URL");
             hook.resolve("index.json")?
         }
         _ => public_node_version_index(),
@@ -79,7 +80,7 @@ fn resolve_latest(hooks: Option<&ToolHooks<Node>>) -> Fallible<Version> {
 
     match version_opt {
         Some(version) => {
-            debug!("Found latest node version ({}) from {}", version, url);
+            debug!("从 {} 找到最新的 node 版本 ({})", url, version);
             Ok(version)
         }
         None => Err(ErrorKind::NodeVersionNotFound {
@@ -89,13 +90,14 @@ fn resolve_latest(hooks: Option<&ToolHooks<Node>>) -> Fallible<Version> {
     }
 }
 
+/// 解析最新的 LTS Node 版本
 fn resolve_lts(hooks: Option<&ToolHooks<Node>>) -> Fallible<Version> {
     let url = match hooks {
         Some(&ToolHooks {
             index: Some(ref hook),
             ..
         }) => {
-            debug!("Using node.index hook to determine node index URL");
+            debug!("使用 node.index 钩子确定 node 索引 URL");
             hook.resolve("index.json")?
         }
         _ => public_node_version_index(),
@@ -104,7 +106,7 @@ fn resolve_lts(hooks: Option<&ToolHooks<Node>>) -> Fallible<Version> {
 
     match version_opt {
         Some(version) => {
-            debug!("Found newest LTS node version ({}) from {}", version, url);
+            debug!("从 {} 找到最新的 LTS node 版本 ({})", url, version);
             Ok(version)
         }
         None => Err(ErrorKind::NodeVersionNotFound {
@@ -114,13 +116,14 @@ fn resolve_lts(hooks: Option<&ToolHooks<Node>>) -> Fallible<Version> {
     }
 }
 
+/// 解析符合语义化版本要求的 Node 版本
 fn resolve_semver(matching: Range, hooks: Option<&ToolHooks<Node>>) -> Fallible<Version> {
     let url = match hooks {
         Some(&ToolHooks {
             index: Some(ref hook),
             ..
         }) => {
-            debug!("Using node.index hook to determine node index URL");
+            debug!("使用 node.index 钩子确定 node 索引 URL");
             hook.resolve("index.json")?
         }
         _ => public_node_version_index(),
@@ -131,10 +134,7 @@ fn resolve_semver(matching: Range, hooks: Option<&ToolHooks<Node>>) -> Fallible<
 
     match version_opt {
         Some(version) => {
-            debug!(
-                "Found node@{} matching requirement '{}' from {}",
-                version, matching, url
-            );
+            debug!("从 {} 找到 node@{} 匹配要求 '{}'", url, version, matching);
             Ok(version)
         }
         None => Err(ErrorKind::NodeVersionNotFound {
@@ -144,6 +144,7 @@ fn resolve_semver(matching: Range, hooks: Option<&ToolHooks<Node>>) -> Fallible<
     }
 }
 
+/// 匹配符合条件的 Node 版本
 fn match_node_version(
     url: &str,
     predicate: impl Fn(&NodeEntry) -> bool,
@@ -155,7 +156,7 @@ fn match_node_version(
         .map(|NodeEntry { version, .. }| version))
 }
 
-/// Reads a public index from the Node cache, if it exists and hasn't expired.
+/// 如果存在且未过期，从 Node 缓存中读取公共索引
 fn read_cached_opt(url: &str) -> Fallible<Option<RawNodeIndex>> {
     let expiry_file = volta_home()?.node_index_expiry_file();
     let expiry = read_file(expiry_file).with_context(|| ErrorKind::ReadNodeIndexExpiryError {
@@ -186,7 +187,7 @@ fn read_cached_opt(url: &str) -> Fallible<Option<RawNodeIndex>> {
     serde_json::de::from_str(json).with_context(|| ErrorKind::ParseNodeIndexCacheError)
 }
 
-/// Get the cache max-age of an HTTP response.
+/// 获取 HTTP 响应的缓存最大年龄
 fn max_age(headers: &HeaderMap) -> Duration {
     const FOUR_HOURS: Duration = Duration::from_secs(4 * 60 * 60);
     headers
@@ -195,15 +196,16 @@ fn max_age(headers: &HeaderMap) -> Duration {
         .unwrap_or(FOUR_HOURS)
 }
 
+/// 解析 Node 版本
 fn resolve_node_versions(url: &str) -> Fallible<RawNodeIndex> {
     match read_cached_opt(url)? {
         Some(serial) => {
-            debug!("Found valid cache of Node version index");
+            debug!("找到有效的 Node 版本索引缓存");
             Ok(serial)
         }
         None => {
-            debug!("Node index cache was not found or was invalid");
-            let spinner = progress_spinner(format!("Fetching public registry: {}", url));
+            debug!("未找到 Node 索引缓存或缓存无效");
+            let spinner = progress_spinner(format!("获取公共注册表: {}", url));
 
             let (_, headers, response) = attohttpc::get(url)
                 .send()

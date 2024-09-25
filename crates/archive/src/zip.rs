@@ -1,5 +1,4 @@
-//! Provides types and functions for fetching and unpacking a Node installation
-//! zip file in Windows operating systems.
+//! 提供在 Windows 操作系统中获取和解压 Node 安装 zip 文件的类型和函数。
 
 use std::fs::File;
 use std::io::Read;
@@ -15,6 +14,7 @@ use zip_rs::unstable::stream::ZipStreamReader;
 use super::Archive;
 use super::Origin;
 
+/// Node 安装 zip 文件。
 pub struct Zip {
     compressed_size: u64,
     data: Box<dyn Read>,
@@ -22,7 +22,7 @@ pub struct Zip {
 }
 
 impl Zip {
-    /// Loads a cached Node zip archive from the specified file.
+    /// 从指定文件加载缓存的 Node zip 归档。
     pub fn load(source: File) -> Result<Box<dyn Archive>, ArchiveError> {
         let compressed_size = source.metadata()?.len();
 
@@ -33,8 +33,7 @@ impl Zip {
         }))
     }
 
-    /// Initiate fetching of a Node zip archive from the given URL, returning
-    /// a `Remote` data source.
+    /// 从给定 URL 开始获取 Node zip 归档，返回一个 `Remote` 数据源。
     pub fn fetch(url: &str, cache_file: &Path) -> Result<Box<dyn Archive>, ArchiveError> {
         let (status, headers, response) = attohttpc::get(url).send()?.split();
 
@@ -57,20 +56,23 @@ impl Zip {
 }
 
 impl Archive for Zip {
+    /// 返回压缩后的大小
     fn compressed_size(&self) -> u64 {
         self.compressed_size
     }
+    /// 解压 zip 文件到指定目录
     fn unpack(
         self: Box<Self>,
         dest: &Path,
         progress: &mut dyn FnMut(&(), usize),
     ) -> Result<(), ArchiveError> {
-        // Use a verbatim path to avoid the legacy Windows 260 byte path limit.
+        // 使用 verbatim 路径以避免 Windows 旧版 260 字节路径限制。
         let dest: &Path = &dest.to_verbatim();
         let zip = ZipStreamReader::new(ProgressRead::new(self.data, (), progress));
         zip.extract(dest)?;
         Ok(())
     }
+    /// 返回 zip 文件的来源
     fn origin(&self) -> Origin {
         self.origin
     }
@@ -83,6 +85,7 @@ pub mod tests {
     use std::fs::File;
     use std::path::PathBuf;
 
+    /// 获取测试文件的路径
     fn fixture_path(fixture_dir: &str) -> PathBuf {
         let mut cargo_manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         cargo_manifest_dir.push("fixtures");
@@ -94,8 +97,8 @@ pub mod tests {
     fn test_load() {
         let mut test_file_path = fixture_path("zips");
         test_file_path.push("test-file.zip");
-        let test_file = File::open(test_file_path).expect("Couldn't open test file");
-        let zip = Zip::load(test_file).expect("Failed to load zip file");
+        let test_file = File::open(test_file_path).expect("无法打开测试文件");
+        let zip = Zip::load(test_file).expect("加载 zip 文件失败");
 
         assert_eq!(zip.compressed_size(), 214);
     }

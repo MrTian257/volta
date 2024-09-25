@@ -7,16 +7,22 @@ use crate::tool;
 use crate::tool::package::PackageManager;
 use textwrap::{fill, indent};
 
+// 报告错误的提示信息
+// Call to action to report a bug
 const REPORT_BUG_CTA: &str =
-    "Please rerun the command that triggered this error with the environment
-variable `VOLTA_LOGLEVEL` set to `debug` and open an issue at
-https://github.com/volta-cli/volta/issues with the details!";
+    "请使用环境变量 `VOLTA_LOGLEVEL` 设置为 `debug` 重新运行触发此错误的命令，
+并在 https://github.com/volta-cli/volta/issues 上提交一个包含详细信息的问题！";
 
-const PERMISSIONS_CTA: &str = "Please ensure you have correct permissions to the Volta directory.";
+// 权限相关的提示信息
+// Call to action for permission issues
+const PERMISSIONS_CTA: &str = "请确保您对 Volta 目录具有正确的权限。";
 
+// 错误类型枚举
+// Enum of error kinds
 #[derive(Debug)]
 #[cfg_attr(test, derive(PartialEq, Eq))]
 pub enum ErrorKind {
+    // 当包尝试安装已经安装的二进制文件时抛出
     /// Thrown when package tries to install a binary that is already installed.
     BinaryAlreadyInstalled {
         bin_name: String,
@@ -24,137 +30,168 @@ pub enum ErrorKind {
         new_package: String,
     },
 
+    // 当执行外部二进制文件失败时抛出
     /// Thrown when executing an external binary fails
     BinaryExecError,
 
+    // 当在本地库中找不到二进制文件时抛出
     /// Thrown when a binary could not be found in the local inventory
     BinaryNotFound {
         name: String,
     },
 
+    // 当构建虚拟环境路径失败时抛出
     /// Thrown when building the virtual environment path fails
     BuildPathError,
 
+    // 当无法使用 VOLTA_BYPASS 启动命令时抛出
     /// Thrown when unable to launch a command with VOLTA_BYPASS set
     BypassError {
         command: String,
     },
 
+    // 当用户尝试 `volta fetch` node/yarn/npm 以外的内容时抛出
     /// Thrown when a user tries to `volta fetch` something other than node/yarn/npm.
     CannotFetchPackage {
         package: String,
     },
 
+    // 当用户尝试 `volta pin` node/yarn/npm 以外的内容时抛出
     /// Thrown when a user tries to `volta pin` something other than node/yarn/npm.
     CannotPinPackage {
         package: String,
     },
 
+    // 当 Completions 输出目录不是一个目录时抛出
     /// Thrown when the Completions out-dir is not a directory
     CompletionsOutFileError {
         path: PathBuf,
     },
 
+    // 当无法确定包含目录时抛出
     /// Thrown when the containing directory could not be determined
     ContainingDirError {
         path: PathBuf,
     },
 
+    // 当无法确定工具时抛出
     CouldNotDetermineTool,
 
+    // 当无法启动迁移可执行文件时抛出
     /// Thrown when unable to start the migration executable
     CouldNotStartMigration,
 
+    // 当创建目录失败时抛出
     CreateDirError {
         dir: PathBuf,
     },
 
+    // 当无法创建布局文件时抛出
     /// Thrown when unable to create the layout file
     CreateLayoutFileError {
         file: PathBuf,
     },
 
+    // 当无法创建到共享全局库目录的链接时抛出
     /// Thrown when unable to create a link to the shared global library directory
     CreateSharedLinkError {
         name: String,
     },
 
+    // 当创建临时目录失败时抛出
     /// Thrown when creating a temporary directory fails
     CreateTempDirError {
         in_dir: PathBuf,
     },
 
+    // 当创建临时文件失败时抛出
     /// Thrown when creating a temporary file fails
     CreateTempFileError {
         in_dir: PathBuf,
     },
 
+    // 当无法确定当前目录时抛出
     CurrentDirError,
 
+    // 当删除目录失败时抛出
     /// Thrown when deleting a directory fails
     DeleteDirectoryError {
         directory: PathBuf,
     },
 
+    // 当删除文件失败时抛出
     /// Thrown when deleting a file fails
     DeleteFileError {
         file: PathBuf,
     },
 
+    // 当使用已弃用的命令时抛出
     DeprecatedCommandError {
         command: String,
         advice: String,
     },
 
+    // 当下载工具网络错误时抛出
     DownloadToolNetworkError {
         tool: tool::Spec,
         from_url: String,
     },
 
+    // 当无法执行钩子命令时抛出
     /// Thrown when unable to execute a hook command
     ExecuteHookError {
         command: String,
     },
 
+    // 当 `volta.extends` 键导致无限循环时抛出
     /// Thrown when `volta.extends` keys result in an infinite cycle
     ExtensionCycleError {
         paths: Vec<PathBuf>,
         duplicate: PathBuf,
     },
 
+    // 当确定扩展清单的路径失败时抛出
     /// Thrown when determining the path to an extension manifest fails
     ExtensionPathError {
         path: PathBuf,
     },
 
+    // 当钩子命令返回非零退出代码时抛出
     /// Thrown when a hook command returns a non-zero exit code
     HookCommandFailed {
         command: String,
     },
 
+    // 当钩子包含多个字段（prefix、template 或 bin）时抛出
     /// Thrown when a hook contains multiple fields (prefix, template, or bin)
     HookMultipleFieldsSpecified,
 
+    // 当钩子不包含任何已知字段（prefix、template 或 bin）时抛出
     /// Thrown when a hook doesn't contain any of the known fields (prefix, template, or bin)
     HookNoFieldsSpecified,
 
+    // 当确定钩子的路径失败时抛出
     /// Thrown when determining the path to a hook fails
     HookPathError {
         command: String,
     },
 
+    // 当确定新安装包的名称失败时抛出
     /// Thrown when determining the name of a newly-installed package fails
     InstalledPackageNameError,
 
+    // 当钩子命令无效时抛出
     InvalidHookCommand {
         command: String,
     },
 
+    // 当无法读取钩子命令的输出时抛出
     /// Thrown when output from a hook command could not be read
     InvalidHookOutput {
         command: String,
     },
 
+    // 当用户执行如 `volta install node 12` 而不是 `volta install node@12` 时抛出
     /// Thrown when a user does e.g. `volta install node 12` instead of
     /// `volta install node@12`.
     InvalidInvocation {
@@ -163,6 +200,7 @@ pub enum ErrorKind {
         version: String,
     },
 
+    // 当用户执行如 `volta install 12` 而不是 `volta install node@12` 时抛出
     /// Thrown when a user does e.g. `volta install 12` instead of
     /// `volta install node@12`.
     InvalidInvocationOfBareVersion {
@@ -170,262 +208,324 @@ pub enum ErrorKind {
         version: String,
     },
 
+    // 当在钩子中给出的 yarn.index 格式不是 "npm" 或 "github" 时抛出
     /// Thrown when a format other than "npm" or "github" is given for yarn.index in the hooks
     InvalidRegistryFormat {
         format: String,
     },
 
+    // 当工具名称根据 npm 的规则无效时抛出
     /// Thrown when a tool name is invalid per npm's rules.
     InvalidToolName {
         name: String,
         errors: Vec<String>,
     },
 
+    // 当无法获取 Volta 目录的锁时抛出
     /// Thrown when unable to acquire a lock on the Volta directory
     LockAcquireError,
 
+    // 当固定或安装 npm@bundled 并且无法检测到捆绑版本时抛出
     /// Thrown when pinning or installing npm@bundled and couldn't detect the bundled version
     NoBundledNpm {
         command: String,
     },
 
+    // 当命令行中未设置 pnpm 时抛出
     /// Thrown when pnpm is not set at the command-line
     NoCommandLinePnpm,
 
+    // 当命令行中未设置 Yarn 时抛出
     /// Thrown when Yarn is not set at the command-line
     NoCommandLineYarn,
 
+    // 当用户在安装 Node 版本之前尝试安装 Yarn 或 npm 版本时抛出
     /// Thrown when a user tries to install a Yarn or npm version before installing a Node version.
     NoDefaultNodeVersion {
         tool: String,
     },
 
+    // 当没有 Node 版本匹配请求的语义版本说明符时抛出
     /// Thrown when there is no Node version matching a requested semver specifier.
     NodeVersionNotFound {
         matching: String,
     },
 
+    // 当没有 HOME 环境变量时抛出
     NoHomeEnvironmentVar,
 
+    // 当无法确定安装目录时抛出
     /// Thrown when the install dir could not be determined
     NoInstallDir,
 
+    // 当没有本地数据目录时抛出
     NoLocalDataDir,
 
+    // 当用户在固定 Node 版本之前尝试固定 npm、pnpm 或 Yarn 版本时抛出
     /// Thrown when a user tries to pin a npm, pnpm, or Yarn version before pinning a Node version.
     NoPinnedNodeVersion {
         tool: String,
     },
 
+    // 当无法确定平台（Node 版本）时抛出
     /// Thrown when the platform (Node version) could not be determined
     NoPlatform,
 
+    // 当解析项目清单时存在 `"volta"` 键但没有 Node 时抛出
     /// Thrown when parsing the project manifest and there is a `"volta"` key without Node
     NoProjectNodeInManifest,
 
+    // 当项目中未设置 Yarn 时抛出
     /// Thrown when Yarn is not set in a project
     NoProjectYarn,
 
+    // 当项目中未设置 pnpm 时抛出
     /// Thrown when pnpm is not set in a project
     NoProjectPnpm,
 
+    // 当找不到 shell 配置文件时抛出
     /// Thrown when no shell profiles could be found
     NoShellProfile {
         env_profile: String,
         bin_dir: PathBuf,
     },
 
+    // 当用户尝试在包外固定 Node 或 Yarn 版本时抛出
     /// Thrown when the user tries to pin Node or Yarn versions outside of a package.
     NotInPackage,
 
+    // 当未设置默认 Yarn 时抛出
     /// Thrown when default Yarn is not set
     NoDefaultYarn,
 
+    // 当未设置默认 pnpm 时抛出
     /// Thrown when default pnpm is not set
     NoDefaultPnpm,
 
+    // 当使用不可用的包调用 `npm link` 时抛出
     /// Thrown when `npm link` is called with a package that isn't available
     NpmLinkMissingPackage {
         package: String,
     },
 
+    // 当使用未通过 npm 安装/链接的包调用 `npm link` 时抛出
     /// Thrown when `npm link` is called with a package that was not installed / linked with npm
     NpmLinkWrongManager {
         package: String,
     },
 
+    // 当没有 npm 版本匹配请求的语义版本/标签时抛出
     /// Thrown when there is no npm version matching the requested Semver/Tag
     NpmVersionNotFound {
         matching: String,
     },
 
+    // 当 npx 不可用时抛出
     NpxNotAvailable {
         version: String,
     },
 
+    // 当安装全局包的命令不成功时抛出
     /// Thrown when the command to install a global package is not successful
     PackageInstallFailed {
         package: String,
     },
 
+    // 当解析包清单失败时抛出
     /// Thrown when parsing the package manifest fails
     PackageManifestParseError {
         package: String,
     },
 
+    // 当读取包清单失败时抛出
     /// Thrown when reading the package manifest fails
     PackageManifestReadError {
         package: String,
     },
 
+    // 当在 npm 注册表中找不到指定的包时抛出
     /// Thrown when a specified package could not be found on the npm registry
     PackageNotFound {
         package: String,
     },
 
+    // 当解析包清单失败时抛出
     /// Thrown when parsing a package manifest fails
     PackageParseError {
         file: PathBuf,
     },
 
+    // 当读取包清单失败时抛出
     /// Thrown when reading a package manifest fails
     PackageReadError {
         file: PathBuf,
     },
 
+    // 当包已解压但格式不正确时抛出
     /// Thrown when a package has been unpacked but is not formed correctly.
     PackageUnpackError,
 
+    // 当写入包清单失败时抛出
     /// Thrown when writing a package manifest fails
     PackageWriteError {
         file: PathBuf,
     },
 
+    // 当无法解析 bin 配置文件时抛出
     /// Thrown when unable to parse a bin config file
     ParseBinConfigError,
 
+    // 当无法解析 hooks.json 文件时抛出
     /// Thrown when unable to parse a hooks.json file
     ParseHooksError {
         file: PathBuf,
     },
 
+    // 当无法解析 node 索引缓存时抛出
     /// Thrown when unable to parse the node index cache
     ParseNodeIndexCacheError,
 
+    // 当无法解析 node 索引时抛出
     /// Thrown when unable to parse the node index
     ParseNodeIndexError {
         from_url: String,
     },
 
+    // 当无法解析 node 索引缓存过期时间时抛出
     /// Thrown when unable to parse the node index cache expiration
     ParseNodeIndexExpiryError,
 
+    // 当无法解析 node 安装中的 npm 清单文件时抛出
     /// Thrown when unable to parse the npm manifest file from a node install
     ParseNpmManifestError,
 
+    // 当无法解析包配置时抛出
     /// Thrown when unable to parse a package configuration
     ParsePackageConfigError,
 
+    // 当无法解析 platform.json 文件时抛出
     /// Thrown when unable to parse the platform.json file
     ParsePlatformError,
 
+    // 当无法解析工具规格（`<tool>[@<version>]`）时抛出
     /// Thrown when unable to parse a tool spec (`<tool>[@<version>]`)
     ParseToolSpecError {
         tool_spec: String,
     },
 
+    // 当将归档持久化到库存失败时抛出
     /// Thrown when persisting an archive to the inventory fails
     PersistInventoryError {
         tool: String,
     },
 
+    // 当没有 pnpm 版本匹配请求的语义版本说明符时抛出
     /// Thrown when there is no pnpm version matching a requested semver specifier.
     PnpmVersionNotFound {
         matching: String,
     },
 
+    // 当执行项目本地二进制文件失败时抛出
     /// Thrown when executing a project-local binary fails
     ProjectLocalBinaryExecError {
         command: String,
     },
 
+    // 当找不到项目本地二进制文件时抛出
     /// Thrown when a project-local binary could not be found
     ProjectLocalBinaryNotFound {
         command: String,
     },
 
+    // 当发布钩子同时包含 url 和 bin 字段时抛出
     /// Thrown when a publish hook contains both the url and bin fields
     PublishHookBothUrlAndBin,
 
+    // 当发布钩子既不包含 url 也不包含 bin 字段时抛出
     /// Thrown when a publish hook contains neither url nor bin fields
     PublishHookNeitherUrlNorBin,
 
+    // 当读取用户 bin 目录时出错时抛出
     /// Thrown when there was an error reading the user bin directory
     ReadBinConfigDirError {
         dir: PathBuf,
     },
 
+    // 当读取二进制文件的配置时出错时抛出
     /// Thrown when there was an error reading the config for a binary
     ReadBinConfigError {
         file: PathBuf,
     },
 
+    // 当无法读取默认 npm 版本文件时抛出
     /// Thrown when unable to read the default npm version file
     ReadDefaultNpmError {
         file: PathBuf,
     },
 
+    // 当无法读取目录内容时抛出
     /// Thrown when unable to read the contents of a directory
     ReadDirError {
         dir: PathBuf,
     },
 
+    // 当打开 hooks.json 文件时出错时抛出
     /// Thrown when there was an error opening a hooks.json file
     ReadHooksError {
         file: PathBuf,
     },
 
+    // 当读取 Node 索引缓存时出错时抛出
     /// Thrown when there was an error reading the Node Index Cache
     ReadNodeIndexCacheError {
         file: PathBuf,
     },
 
+    // 当读取 Node 索引缓存过期时间时出错时抛出
     /// Thrown when there was an error reading the Node Index Cache Expiration
     ReadNodeIndexExpiryError {
         file: PathBuf,
     },
 
+    // 当读取 npm 清单文件时出错时抛出
     /// Thrown when there was an error reading the npm manifest file
     ReadNpmManifestError,
 
+    // 当读取包配置文件时出错时抛出
     /// Thrown when there was an error reading a package configuration file
     ReadPackageConfigError {
         file: PathBuf,
     },
 
+    // 当打开用户平台文件时出错时抛出
     /// Thrown when there was an error opening the user platform file
     ReadPlatformError {
         file: PathBuf,
     },
 
+    // 当无法从注册表读取用户 Path 环境变量时抛出
     /// Thrown when unable to read the user Path environment variable from the registry
     #[cfg(windows)]
     ReadUserPathError,
 
+    // 当无法下载 Node 或 Yarn 的公共注册表时抛出
     /// Thrown when the public registry for Node or Yarn could not be downloaded.
     RegistryFetchError {
         tool: String,
         from_url: String,
     },
 
+    // 当直接调用 shim 二进制文件而不是通过符号链接时抛出
     /// Thrown when the shim binary is called directly, not through a symlink
     RunShimDirectly,
 
+    // 当设置工具为可执行时出错时抛出
     /// Thrown when there was an error setting a tool to executable
     SetToolExecutable {
         tool: String,
     },
 
+    // 当将解压的工具复制到镜像目录时出错时抛出
     /// Thrown when there was an error copying an unpacked tool to the image directory
     SetupToolImageError {
         tool: String,
@@ -433,99 +533,120 @@ pub enum ErrorKind {
         dir: PathBuf,
     },
 
+    // 当 Volta 无法创建 shim 时抛出
     /// Thrown when Volta is unable to create a shim
     ShimCreateError {
         name: String,
     },
 
+    // 当 Volta 无法删除 shim 时抛出
     /// Thrown when Volta is unable to remove a shim
     ShimRemoveError {
         name: String,
     },
 
+    // 当将 bin 配置序列化为 JSON 失败时抛出
     /// Thrown when serializing a bin config to JSON fails
     StringifyBinConfigError,
 
+    // 当将包配置序列化为 JSON 失败时抛出
     /// Thrown when serializing a package config to JSON fails
     StringifyPackageConfigError,
 
+    // 当将平台序列化为 JSON 失败时抛出
     /// Thrown when serializing the platform to JSON fails
     StringifyPlatformError,
 
+    // 当给定的功能尚未实现时抛出
     /// Thrown when a given feature has not yet been implemented
     Unimplemented {
         feature: String,
     },
 
+    // 当解压归档（tarball 或 zip）失败时抛出
     /// Thrown when unpacking an archive (tarball or zip) fails
     UnpackArchiveError {
         tool: String,
         version: String,
     },
 
+    // 当找不到要升级的包时抛出
     /// Thrown when a package to upgrade was not found
     UpgradePackageNotFound {
         package: String,
         manager: PackageManager,
     },
 
+    // 当要升级的包是用不同的包管理器安装的时抛出
     /// Thrown when a package to upgrade was installed with a different package manager
     UpgradePackageWrongManager {
         package: String,
         manager: PackageManager,
     },
 
+    // 当版本解析错误时抛出
     VersionParseError {
         version: String,
     },
 
+    // 当写入 bin 配置文件时出错时抛出
     /// Thrown when there was an error writing a bin config file
     WriteBinConfigError {
         file: PathBuf,
     },
 
+    // 当写入默认 npm 到文件时出错时抛出
     /// Thrown when there was an error writing the default npm to file
     WriteDefaultNpmError {
         file: PathBuf,
     },
 
+    // 当写入 npm 启动器时出错时抛出
     /// Thrown when there was an error writing the npm launcher
     WriteLauncherError {
         tool: String,
     },
 
+    // 当写入 node 索引缓存时出错时抛出
     /// Thrown when there was an error writing the node index cache
     WriteNodeIndexCacheError {
         file: PathBuf,
     },
 
+    // 当写入 node 索引过期时间时出错时抛出
     /// Thrown when there was an error writing the node index expiration
     WriteNodeIndexExpiryError {
         file: PathBuf,
     },
 
+    // 当写入包配置时出错时抛出
     /// Thrown when there was an error writing a package config
     WritePackageConfigError {
         file: PathBuf,
     },
 
+    // 当写入 platform.json 文件失败时抛出
     /// Thrown when writing the platform.json file fails
     WritePlatformError {
         file: PathBuf,
     },
 
+    // 当无法写入用户 PATH 环境变量时抛出
     /// Thrown when unable to write the user PATH environment variable
     #[cfg(windows)]
     WriteUserPathError,
 
+    // 当用户尝试安装 Yarn2 版本时抛出
     /// Thrown when a user attempts to install a version of Yarn2
     Yarn2NotSupported,
 
+    // 当获取最新版本的 Yarn 时出错时抛出
     /// Thrown when there is an error fetching the latest version of Yarn
     YarnLatestFetchError {
         from_url: String,
     },
 
+    // 当没有 Yarn 版本匹配请求的语义版本说明符时抛出
     /// Thrown when there is no Yarn version matching a requested semver specifier.
     YarnVersionNotFound {
         matching: String,
@@ -541,61 +662,61 @@ impl fmt::Display for ErrorKind {
                 new_package,
             } => write!(
                 f,
-                "Executable '{}' is already installed by {}
+                "可执行文件 '{}' 已经由 {} 安装
 
-Please remove {} before installing {}",
-                bin_name, existing_package, existing_package, new_package
+请在安装 {} 之前移除 {}",
+                bin_name, existing_package, new_package, existing_package
             ),
             ErrorKind::BinaryExecError => write!(
                 f,
-                "Could not execute command.
+                "无法执行命令。
 
-See `volta help install` and `volta help pin` for info about making tools available."
+请查看 `volta help install` 和 `volta help pin` 以了解如何使工具可用。"
             ),
             ErrorKind::BinaryNotFound { name } => write!(
                 f,
-                r#"Could not find executable "{}"
+                r#"找不到可执行文件 "{}"
 
-Use `volta install` to add a package to your toolchain (see `volta help install` for more info)."#,
+使用 `volta install` 将包添加到您的工具链中（更多信息请参见 `volta help install`）。"#,
                 name
             ),
             ErrorKind::BuildPathError => write!(
                 f,
-                "Could not create execution environment.
+                "无法创建执行环境。
 
-Please ensure your PATH is valid."
+请确保您的 PATH 有效。"
             ),
             ErrorKind::BypassError { command } => write!(
                 f,
-                "Could not execute command '{}'
+                "无法执行命令 '{}'
 
-VOLTA_BYPASS is enabled, please ensure that the command exists on your system or unset VOLTA_BYPASS",
+VOLTA_BYPASS 已启用，请确保该命令存在于您的系统中或取消设置 VOLTA_BYPASS",
                 command,
             ),
             ErrorKind::CannotFetchPackage { package } => write!(
                 f,
-                "Fetching packages without installing them is not supported.
+                "不支持在不安装的情况下获取包。
 
-Use `volta install {}` to update the default version.",
+使用 `volta install {}` 更新默认版本。",
                 package
             ),
             ErrorKind::CannotPinPackage { package } => write!(
                 f,
-                "Only node and yarn can be pinned in a project
+                "只能在项目中固定 node 和 yarn
 
-Use `npm install` or `yarn add` to select a version of {} for this project.",
+使用 `npm install` 或 `yarn add` 为此项目选择 {} 的版本。",
                 package
             ),
             ErrorKind::CompletionsOutFileError { path } => write!(
                 f,
-                "Completions file `{}` already exists.
+                "补全文件 `{}` 已存在。
 
-Please remove the file or pass `-f` or `--force` to override.",
+请删除该文件或传递 `-f` 或 `--force` 以覆盖。",
                 path.display()
             ),
             ErrorKind::ContainingDirError { path } => write!(
                 f,
-                "Could not create the containing directory for {}
+                "无法创建 {} 的包含目录
 
 {}",
                 path.display(),
@@ -603,42 +724,42 @@ Please remove the file or pass `-f` or `--force` to override.",
             ),
             ErrorKind::CouldNotDetermineTool => write!(
                 f,
-                "Could not determine tool name
+                "无法确定工具名称
 
 {}",
                 REPORT_BUG_CTA
             ),
             ErrorKind::CouldNotStartMigration => write!(
                 f,
-                "Could not start migration process to upgrade your Volta directory.
+                "无法启动迁移过程以升级您的 Volta 目录。
 
-Please ensure you have 'volta-migrate' on your PATH and run it directly."
+请确保您的 PATH 中有 'volta-migrate' 并直接运行它。"
             ),
             ErrorKind::CreateDirError { dir } => write!(
                 f,
-                "Could not create directory {}
+                "无法创建目录 {}
 
-Please ensure that you have the correct permissions.",
+请确保您有正确的权限。",
                 dir.display()
             ),
             ErrorKind::CreateLayoutFileError { file } => write!(
                 f,
-                "Could not create layout file {}
+                "无法创建布局文件 {}
 
 {}",
                 file.display(), PERMISSIONS_CTA
             ),
             ErrorKind::CreateSharedLinkError { name } => write!(
                 f,
-                "Could not create shared environment for package '{}'
+                "无法为包 '{}' 创建共享环境
 
 {}",
                 name, PERMISSIONS_CTA
             ),
             ErrorKind::CreateTempDirError { in_dir } => write!(
                 f,
-                "Could not create temporary directory
-in {}
+                "无法创建临时目录
+在 {}
 
 {}",
                 in_dir.display(),
@@ -646,8 +767,8 @@ in {}
             ),
             ErrorKind::CreateTempFileError { in_dir } => write!(
                 f,
-                "Could not create temporary file
-in {}
+                "无法创建临时文件
+在 {}
 
 {}",
                 in_dir.display(),
@@ -655,14 +776,14 @@ in {}
             ),
             ErrorKind::CurrentDirError => write!(
                 f,
-                "Could not determine current directory
+                "无法确定当前目录
 
-Please ensure that you have the correct permissions."
+请确保您有正确的权限。"
             ),
             ErrorKind::DeleteDirectoryError { directory } => write!(
                 f,
-                "Could not remove directory
-at {}
+                "无法删除目录
+在 {}
 
 {}",
                 directory.display(),
@@ -670,40 +791,40 @@ at {}
             ),
             ErrorKind::DeleteFileError { file } => write!(
                 f,
-                "Could not remove file
-at {}
+                "无法删除文件
+在 {}
 
 {}",
                 file.display(),
                 PERMISSIONS_CTA
             ),
             ErrorKind::DeprecatedCommandError { command, advice } => {
-                write!(f, "The subcommand `{}` is deprecated.\n{}", command, advice)
+                write!(f, "子命令 `{}` 已被弃用。\n{}", command, advice)
             }
             ErrorKind::DownloadToolNetworkError { tool, from_url } => write!(
                 f,
-                "Could not download {}
-from {}
+                "无法下载 {}
+从 {}
 
-Please verify your internet connection and ensure the correct version is specified.",
+请验证您的互联网连接并确保指定了正确的版本。",
                 tool, from_url
             ),
             ErrorKind::ExecuteHookError { command } => write!(
                 f,
-                "Could not execute hook command: '{}'
+                "无法执行钩子命令：'{}'
 
-Please ensure that the correct command is specified.",
+请确保指定了正确的命令。",
                 command
             ),
             ErrorKind::ExtensionCycleError { paths, duplicate } => {
-                // Detected infinite loop in project workspace:
+                // 在项目工作空间中检测到无限循环：
                 //
                 // --> /home/user/workspace/project/package.json
                 //     /home/user/workspace/package.json
                 // --> /home/user/workspace/project/package.json
                 //
-                // Please ensure that project workspaces do not depend on each other.
-                f.write_str("Detected infinite loop in project workspace:\n\n")?;
+                // 请确保项目工作空间不相互依赖。
+                f.write_str("在项目工作空间中检测到无限循环：\n\n")?;
 
                 for path in paths {
                     if path == duplicate {
@@ -718,60 +839,60 @@ Please ensure that the correct command is specified.",
                 writeln!(f, "--> {}", duplicate.display())?;
                 writeln!(f)?;
 
-                f.write_str("Please ensure that project workspaces do not depend on each other.")
+                f.write_str("请确保项目工作空间不相互依赖。")
             }
             ErrorKind::ExtensionPathError { path } => write!(
                 f,
-                "Could not determine path to project workspace: '{}'
+                "无法确定项目工作空间的路径：'{}'
 
-Please ensure that the file exists and is accessible.",
+请确保文件存在且可访问。",
                 path.display(),
             ),
             ErrorKind::HookCommandFailed { command } => write!(
                 f,
-                "Hook command '{}' indicated a failure.
+                "钩子命令 '{}' 指示失败。
 
-Please verify the requested tool and version.",
+请验证请求的工具和版本。",
                 command
             ),
             ErrorKind::HookMultipleFieldsSpecified => write!(
                 f,
-                "Hook configuration includes multiple hook types.
+                "钩子配置包含多个钩子类型。
 
-Please include only one of 'bin', 'prefix', or 'template'"
+请只包含 'bin'、'prefix' 或 'template' 中的一个"
             ),
             ErrorKind::HookNoFieldsSpecified => write!(
                 f,
-                "Hook configuration includes no hook types.
+                "钩子配置不包含任何钩子类型。
 
-Please include one of 'bin', 'prefix', or 'template'"
+请包含 'bin'、'prefix' 或 'template' 中的一个"
             ),
             ErrorKind::HookPathError { command } => write!(
                 f,
-                "Could not determine path to hook command: '{}'
+                "无法确定钩子命令的路径：'{}'
 
-Please ensure that the correct command is specified.",
+请确保指定了正确的命令。",
                 command
             ),
             ErrorKind::InstalledPackageNameError => write!(
                 f,
-                "Could not determine the name of the package that was just installed.
+                "无法确定刚刚安装的包的名称。
 
 {}",
                 REPORT_BUG_CTA
             ),
             ErrorKind::InvalidHookCommand { command } => write!(
                 f,
-                "Invalid hook command: '{}'
+                "无效的钩子命令：'{}'
 
-Please ensure that the correct command is specified.",
+请确保指定了正确的命令。",
                 command
             ),
             ErrorKind::InvalidHookOutput { command } => write!(
                 f,
-                "Could not read output from hook command: '{}'
+                "无法读取钩子命令的输出：'{}'
 
-Please ensure that the command output is valid UTF-8 text.",
+请确保命令输出是有效的 UTF-8 文本。",
                 command
             ),
 
@@ -781,15 +902,15 @@ Please ensure that the command output is valid UTF-8 text.",
                 version,
             } => {
                 let error = format!(
-                    "`volta {action} {name} {version}` is not supported.",
+                    "不支持 `volta {action} {name} {version}`。",
                     action = action,
                     name = name,
                     version = version
                 );
 
                 let call_to_action = format!(
-"To {action} '{name}' version '{version}', please run `volta {action} {formatted}`. \
-To {action} the packages '{name}' and '{version}', please {action} them in separate commands, or with explicit versions.",
+"要 {action} '{name}' 版本 '{version}'，请运行 `volta {action} {formatted}`。 \
+要 {action} 包 '{name}' 和 '{version}'，请在单独的命令中 {action} 它们，或使用显式版本。",
                     action=action,
                     name=name,
                     version=version,
@@ -809,14 +930,14 @@ To {action} the packages '{name}' and '{version}', please {action} them in separ
                 version,
             } => {
                 let error = format!(
-                    "`volta {action} {version}` is not supported.",
+                    "不支持 `volta {action} {version}`。",
                     action = action,
                     version = version
                 );
 
                 let call_to_action = format!(
-"To {action} node version '{version}', please run `volta {action} {formatted}`. \
-To {action} the package '{version}', please use an explicit version such as '{version}@latest'.",
+"要 {action} node 版本 '{version}'，请运行 `volta {action} {formatted}`。 \
+要 {action} 包 '{version}'，请使用显式版本，如 '{version}@latest'。",
                     action=action,
                     version=version,
                     formatted=tool_version("node", version)
@@ -832,9 +953,9 @@ To {action} the package '{version}', please use an explicit version such as '{ve
 
             ErrorKind::InvalidRegistryFormat { format } => write!(
                 f,
-                "Unrecognized index registry format: '{}'
+                "无法识别的索引注册表格式：'{}'
 
-Please specify either 'npm' or 'github' for the format.",
+请为格式指定 'npm' 或 'github'。",
 format
             ),
 
@@ -847,324 +968,324 @@ format
                 let formatted_errs = indent(&wrapped, indentation);
 
                 let call_to_action = if errors.len() > 1 {
-                    "Please fix the following errors:"
+                    "请修复以下错误："
                 } else {
-                    "Please fix the following error:"
+                    "请修复以下错误："
                 };
 
                 write!(
                     f,
-                    "Invalid tool name `{}`\n\n{}\n{}",
+                    "无效的工具名称 `{}`\n\n{}\n{}",
                     name, call_to_action, formatted_errs
                 )
             }
-            // Note: No CTA as this error is purely informational and shouldn't be exposed to the user
+            // 注意：这个错误纯粹是信息性的，不应该暴露给用户
             ErrorKind::LockAcquireError => write!(
                 f,
-                "Unable to acquire lock on Volta directory"
+                "无法获取 Volta 目录的锁"
             ),
             ErrorKind::NoBundledNpm { command } => write!(
                 f,
-                "Could not detect bundled npm version.
+                "无法检测到捆绑的 npm 版本。
 
-Please ensure you have a Node version selected with `volta {} node` (see `volta help {0}` for more info).",
+请确保您已使用 `volta {} node` 选择了 Node 版本（更多信息请参见 `volta help {0}`）。",
                 command
             ),
             ErrorKind::NoCommandLinePnpm => write!(
                 f,
-                "No pnpm version specified.
+                "未指定 pnpm 版本。
 
-Use `volta run --pnpm` to select a version (see `volta help run` for more info)."
+使用 `volta run --pnpm` 选择一个版本（更多信息请参见 `volta help run`）。"
             ),
             ErrorKind::NoCommandLineYarn => write!(
                 f,
-                "No Yarn version specified.
+                "未指定 Yarn 版本。
 
-Use `volta run --yarn` to select a version (see `volta help run` for more info)."
+使用 `volta run --yarn` 选择一个版本（更多信息请参见 `volta help run`）。"
             ),
             ErrorKind::NoDefaultNodeVersion { tool } => write!(
                 f,
-                "Cannot install {} because the default Node version is not set.
+                "无法安装 {} 因为未设置默认的 Node 版本。
 
-Use `volta install node` to select a default Node first, then install a {0} version.",
+首先使用 `volta install node` 选择默认的 Node，然后安装 {0} 版本。",
                                 tool
             ),
             ErrorKind::NodeVersionNotFound { matching } => write!(
                 f,
-                r#"Could not find Node version matching "{}" in the version registry.
+                r#"在版本注册表中找不到匹配 "{}" 的 Node 版本。
 
-Please verify that the version is correct."#,
+请验证版本是否正确。"#,
                 matching
             ),
             ErrorKind::NoHomeEnvironmentVar => write!(
                 f,
-                "Could not determine home directory.
+                "无法确定主目录。
 
-Please ensure the environment variable 'HOME' is set."
+请确保设置了环境变量 'HOME'。"
             ),
             ErrorKind::NoInstallDir => write!(
                 f,
-                "Could not determine Volta install directory.
+                "无法确定 Volta 安装目录。
 
-Please ensure Volta was installed correctly"
+请确保正确安装了 Volta"
             ),
             ErrorKind::NoLocalDataDir => write!(
                 f,
-                "Could not determine LocalAppData directory.
+                "无法确定 LocalAppData 目录。
 
-Please ensure the directory is available."
+请确保该目录可用。"
             ),
             ErrorKind::NoPinnedNodeVersion { tool } => write!(
                 f,
-                "Cannot pin {} because the Node version is not pinned in this project.
+                "无法固定 {} 因为此项目中未固定 Node 版本。
 
-Use `volta pin node` to pin Node first, then pin a {0} version.",
+首先使用 `volta pin node` 固定 Node，然后固定 {0} 版本。",
                 tool
             ),
             ErrorKind::NoPlatform => write!(
                 f,
-                "Node is not available.
+                "Node 不可用。
 
-To run any Node command, first set a default version using `volta install node`"
+要运行任何 Node 命令，请先使用 `volta install node` 设置默认版本"
             ),
             ErrorKind::NoProjectNodeInManifest => write!(
                 f,
-                "No Node version found in this project.
+                "在此项目中找不到 Node 版本。
 
-Use `volta pin node` to select a version (see `volta help pin` for more info)."
+使用 `volta pin node` 选择一个版本（更多信息请参见 `volta help pin`）。"
             ),
             ErrorKind::NoProjectPnpm => write!(
                 f,
-                "No pnpm version found in this project.
+                "在此项目中找不到 pnpm 版本。
 
-Use `volta pin pnpm` to select a version (see `volta help pin` for more info)."
+使用 `volta pin pnpm` 选择一个版本（更多信息请参见 `volta help pin`）。"
             ),
             ErrorKind::NoProjectYarn => write!(
                 f,
-                "No Yarn version found in this project.
+                "在此项目中找不到 Yarn 版本。
 
-Use `volta pin yarn` to select a version (see `volta help pin` for more info)."
+使用 `volta pin yarn` 选择一个版本（更多信息请参见 `volta help pin`）。"
             ),
             ErrorKind::NoShellProfile { env_profile, bin_dir } => write!(
                 f,
-                "Could not locate user profile.
-Tried $PROFILE ({}), ~/.bashrc, ~/.bash_profile, ~/.zshenv ~/.zshrc, ~/.profile, and ~/.config/fish/config.fish
+                "无法找到用户配置文件。
+尝试了 $PROFILE ({})、~/.bashrc、~/.bash_profile、~/.zshenv ~/.zshrc、~/.profile 和 ~/.config/fish/config.fish
 
-Please create one of these and try again; or you can edit your profile manually to add '{}' to your PATH",
+请创建其中之一并重试；或者您可以手动编辑您的配置文件以将 '{}' 添加到您的 PATH",
                 env_profile, bin_dir.display()
             ),
             ErrorKind::NotInPackage => write!(
                 f,
-                "Not in a node package.
+                "不在 node 包中。
 
-Use `volta install` to select a default version of a tool."
+使用 `volta install` 选择工具的默认版本。"
             ),
             ErrorKind::NoDefaultPnpm => write!(
                 f,
-                "pnpm is not available.
+                "pnpm 不可用。
 
-Use `volta install pnpm` to select a default version (see `volta help install` for more info)."
+使用 `volta install pnpm` 选择默认版本（更多信息请参见 `volta help install`）。"
             ),
             ErrorKind::NoDefaultYarn => write!(
                 f,
-                "Yarn is not available.
+                "Yarn 不可用。
 
-Use `volta install yarn` to select a default version (see `volta help install` for more info)."
+使用 `volta install yarn` 选择默认版本（更多信息请参见 `volta help install`）。"
             ),
             ErrorKind::NpmLinkMissingPackage { package } => write!(
                 f,
-                "Could not locate the package '{}'
+                "无法找到包 '{}'
 
-Please ensure it is available by running `npm link` in its source directory.",
+请确保通过在其源目录中运行 `npm link` 使其可用。",
                 package
             ),
             ErrorKind::NpmLinkWrongManager { package } => write!(
                 f,
-                "The package '{}' was not installed using npm and cannot be linked with `npm link`
+                "包 '{}' 不是使用 npm 安装的，无法使用 `npm link` 链接
 
-Please ensure it is linked with `npm link` or installed with `npm i -g {0}`.",
+请确保使用 `npm link` 链接它或使用 `npm i -g {0}` 安装它。",
                 package
             ),
             ErrorKind::NpmVersionNotFound { matching } => write!(
                 f,
-                r#"Could not find Node version matching "{}" in the version registry.
+                r#"在版本注册表中找不到匹配 "{}" 的 Node 版本。
 
-Please verify that the version is correct."#,
+请验证版本是否正确。"#,
                 matching
             ),
             ErrorKind::NpxNotAvailable { version } => write!(
                 f,
-                "'npx' is only available with npm >= 5.2.0
+                "'npx' 仅在 npm >= 5.2.0 时可用
 
-This project is configured to use version {} of npm.",
+此项目配置为使用 npm 版本 {}。",
                 version
             ),
             ErrorKind::PackageInstallFailed { package } => write!(
                 f,
-                "Could not install package '{}'
+                "无法安装包 '{}'
 
-Please confirm the package is valid and run with `--verbose` for more diagnostics.",
+请确认包是有效的，并使用 `--verbose` 运行以获取更多诊断信息。",
                 package
             ),
             ErrorKind::PackageManifestParseError { package } => write!(
                 f,
-                "Could not parse package.json manifest for {}
+                "无法解析 {} 的 package.json 清单
 
-Please ensure the package includes a valid manifest file.",
+请确保包包含有效的清单文件。",
                 package
             ),
             ErrorKind::PackageManifestReadError { package } => write!(
                 f,
-                "Could not read package.json manifest for {}
+                "无法读取 {} 的 package.json 清单
 
-Please ensure the package includes a valid manifest file.",
+请确保包包含有效的清单文件。",
                 package
             ),
             ErrorKind::PackageNotFound { package } => write!(
                 f,
-                "Could not find '{}' in the package registry.
+                "在包注册表中找不到 '{}'。
 
-Please verify the requested package is correct.",
+请验证请求的包是否正确。",
                 package
             ),
             ErrorKind::PackageParseError { file } => write!(
                 f,
-                "Could not parse project manifest
-at {}
+                "无法解析项目清单
+在 {}
 
-Please ensure that the file is correctly formatted.",
+请确保文件格式正确。",
                 file.display()
             ),
             ErrorKind::PackageReadError { file } => write!(
                 f,
-                "Could not read project manifest
-from {}
+                "无法读取项目清单
+从 {}
 
-Please ensure that the file exists.",
+请确保文件存在。",
                 file.display()
             ),
             ErrorKind::PackageUnpackError => write!(
                 f,
-                "Could not determine package directory layout.
+                "无法确定包目录布局。
 
-Please ensure the package is correctly formatted."
+请确保包格式正确。"
             ),
             ErrorKind::PackageWriteError { file } => write!(
                 f,
-                "Could not write project manifest
-to {}
+                "无法写入项目清单
+到 {}
 
-Please ensure you have correct permissions.",
+请确保您有正确的权限。",
                 file.display()
             ),
             ErrorKind::ParseBinConfigError => write!(
                 f,
-                "Could not parse executable configuration file.
+                "无法解析可执行文件配置文件。
 
 {}",
                 REPORT_BUG_CTA
             ),
             ErrorKind::ParseHooksError { file } => write!(
                 f,
-                "Could not parse hooks configuration file.
-from {}
+                "无法解析钩子配置文件。
+从 {}
 
-Please ensure the file is correctly formatted.",
+请确保文件格式正确。",
                 file.display()
             ),
             ErrorKind::ParseNodeIndexCacheError => write!(
                 f,
-                "Could not parse Node index cache file.
+                "无法解析 Node 索引缓存文件。
 
 {}",
                 REPORT_BUG_CTA
             ),
             ErrorKind::ParseNodeIndexError { from_url } => write!(
                 f,
-                "Could not parse Node version index
-from {}
+                "无法解析 Node 版本索引
+从 {}
 
-Please verify your internet connection.",
+请验证您的互联网连接。",
                 from_url
             ),
             ErrorKind::ParseNodeIndexExpiryError => write!(
                 f,
-                "Could not parse Node index cache expiration file.
+                "无法解析 Node 索引缓存过期文件。
 
 {}",
                 REPORT_BUG_CTA
             ),
             ErrorKind::ParseNpmManifestError => write!(
                 f,
-                "Could not parse package.json file for bundled npm.
+                "无法解析捆绑 npm 的 package.json 文件。
 
-Please ensure the version of Node is correct."
+请确保 Node 版本正确。"
             ),
             ErrorKind::ParsePackageConfigError => write!(
                 f,
-                "Could not parse package configuration file.
+                "无法解析包配置文件。
 
 {}",
                 REPORT_BUG_CTA
             ),
             ErrorKind::ParsePlatformError => write!(
                 f,
-                "Could not parse platform settings file.
+                "无法解析平台设置文件。
 
 {}",
                 REPORT_BUG_CTA
             ),
             ErrorKind::ParseToolSpecError { tool_spec } => write!(
                 f,
-                "Could not parse tool spec `{}`
+                "无法解析工具规格 `{}`
 
-Please supply a spec in the format `<tool name>[@<version>]`.",
+请提供格式为 `<工具名称>[@<版本>]` 的规格。",
                 tool_spec
             ),
             ErrorKind::PersistInventoryError { tool } => write!(
                 f,
-                "Could not store {} archive in inventory cache
+                "无法将 {} 存档存储在库存缓存中
 
 {}",
                 tool, PERMISSIONS_CTA
             ),
             ErrorKind::PnpmVersionNotFound { matching } => write!(
                 f,
-                r#"Could not find pnpm version matching "{}" in the version registry.
+                r#"在版本注册表中找不到匹配 "{}" 的 pnpm 版本。
 
-Please verify that the version is correct."#,
+请验证版本是否正确。"#,
                 matching
             ),
             ErrorKind::ProjectLocalBinaryExecError { command } => write!(
                 f,
-                "Could not execute `{}`
+                "无法执行 `{}`
 
-Please ensure you have correct permissions to access the file.",
+请确保您有正确的权限访问该文件。",
                 command
             ),
             ErrorKind::ProjectLocalBinaryNotFound { command } => write!(
                 f,
-                "Could not locate executable `{}` in your project.
+                "在您的项目中找不到可执行文件 `{}`。
 
-Please ensure that all project dependencies are installed with `npm install` or `yarn install`",
+请确保使用 `npm install` 或 `yarn install` 安装了所有项目依赖项",
                 command
             ),
             ErrorKind::PublishHookBothUrlAndBin => write!(
                 f,
-                "Publish hook configuration includes both hook types.
+                "发布钩子配置包含两种钩子类型。
 
-Please include only one of 'bin' or 'url'"
+请只包含 'bin' 或 'url' 中的一个"
             ),
             ErrorKind::PublishHookNeitherUrlNorBin => write!(
                 f,
-                "Publish hook configuration includes no hook types.
+                "发布钩子配置不包含任何钩子类型。
 
-Please include one of 'bin' or 'url'"
+请包含 'bin' 或 'url' 中的一个"
             ),
             ErrorKind::ReadBinConfigDirError { dir } => write!(
                 f,
-                "Could not read executable metadata directory
-at {}
+                "无法读取可执行文件元数据目录
+在 {}
 
 {}",
                 dir.display(),
@@ -1172,8 +1293,8 @@ at {}
             ),
             ErrorKind::ReadBinConfigError { file } => write!(
                 f,
-                "Could not read executable configuration
-from {}
+                "无法读取可执行文件配置
+从 {}
 
 {}",
                 file.display(),
@@ -1181,8 +1302,8 @@ from {}
             ),
             ErrorKind::ReadDefaultNpmError { file } => write!(
                 f,
-                "Could not read default npm version
-from {}
+                "无法读取默认 npm 版本
+从 {}
 
 {}",
                 file.display(),
@@ -1190,15 +1311,15 @@ from {}
             ),
             ErrorKind::ReadDirError { dir } => write!(
                 f,
-                "Could not read contents from directory {}
+                "无法读取目录 {} 的内容
 
 {}",
                 dir.display(), PERMISSIONS_CTA
             ),
             ErrorKind::ReadHooksError { file } => write!(
                 f,
-                "Could not read hooks file
-from {}
+                "无法读取钩子文件
+从 {}
 
 {}",
                 file.display(),
@@ -1206,8 +1327,8 @@ from {}
             ),
             ErrorKind::ReadNodeIndexCacheError { file } => write!(
                 f,
-                "Could not read Node index cache
-from {}
+                "无法读取 Node 索引缓存
+从 {}
 
 {}",
                 file.display(),
@@ -1215,8 +1336,8 @@ from {}
             ),
             ErrorKind::ReadNodeIndexExpiryError { file } => write!(
                 f,
-                "Could not read Node index cache expiration
-from {}
+                "无法读取 Node 索引缓存过期时间
+从 {}
 
 {}",
                 file.display(),
@@ -1224,14 +1345,14 @@ from {}
             ),
             ErrorKind::ReadNpmManifestError => write!(
                 f,
-                "Could not read package.json file for bundled npm.
+                "无法读取捆绑 npm 的 package.json 文件。
 
-Please ensure the version of Node is correct."
+请确保 Node 版本正确。"
             ),
             ErrorKind::ReadPackageConfigError { file } => write!(
                 f,
-                "Could not read package configuration file
-from {}
+                "无法读取包配置文件
+从 {}
 
 {}",
                 file.display(),
@@ -1239,8 +1360,8 @@ from {}
             ),
             ErrorKind::ReadPlatformError { file } => write!(
                 f,
-                "Could not read default platform file
-from {}
+                "无法读取默认平台文件
+从 {}
 
 {}",
                 file.display(),
@@ -1249,35 +1370,35 @@ from {}
             #[cfg(windows)]
             ErrorKind::ReadUserPathError => write!(
                 f,
-                "Could not read user Path environment variable.
+                "无法读取用户 Path 环境变量。
 
-Please ensure you have access to the your environment variables."
+请确保您有权访问您的环境变量。"
             ),
             ErrorKind::RegistryFetchError { tool, from_url } => write!(
                 f,
-                "Could not download {} version registry
-from {}
+                "无法下载 {} 版本注册表
+从 {}
 
-Please verify your internet connection.",
+请验证您的互联网连接。",
                 tool, from_url
             ),
             ErrorKind::RunShimDirectly => write!(
                 f,
-                "'volta-shim' should not be called directly.
+                "'volta-shim' 不应直接调用。
 
-Please use the existing shims provided by Volta (node, yarn, etc.) to run tools."
+请使用 Volta 提供的现有 shim（node、yarn 等）来运行工具。"
             ),
             ErrorKind::SetToolExecutable { tool } => write!(
                 f,
-                r#"Could not set "{}" to executable
+                r#"无法将 "{}" 设置为可执行
 
 {}"#,
                 tool, PERMISSIONS_CTA
             ),
             ErrorKind::SetupToolImageError { tool, version, dir } => write!(
                 f,
-                "Could not create environment for {} v{}
-at {}
+                "无法为 {} v{} 创建环境
+在 {}
 
 {}",
                 tool,
@@ -1287,54 +1408,54 @@ at {}
             ),
             ErrorKind::ShimCreateError { name } => write!(
                 f,
-                r#"Could not create shim for "{}"
+                r#"无法为 "{}" 创建 shim
 
 {}"#,
                 name, PERMISSIONS_CTA
             ),
             ErrorKind::ShimRemoveError { name } => write!(
                 f,
-                r#"Could not remove shim for "{}"
+                r#"无法移除 "{}" 的 shim
 
 {}"#,
                 name, PERMISSIONS_CTA
             ),
             ErrorKind::StringifyBinConfigError => write!(
                 f,
-                "Could not serialize executable configuration.
+                "无法序列化可执行文件配置。
 
 {}",
                 REPORT_BUG_CTA
             ),
             ErrorKind::StringifyPackageConfigError => write!(
                 f,
-                "Could not serialize package configuration.
+                "无法序列化包配置。
 
 {}",
                 REPORT_BUG_CTA
             ),
             ErrorKind::StringifyPlatformError => write!(
                 f,
-                "Could not serialize platform settings.
+                "无法序列化平台设置。
 
 {}",
                 REPORT_BUG_CTA
             ),
             ErrorKind::Unimplemented { feature } => {
-                write!(f, "{} is not supported yet.", feature)
+                write!(f, "{}尚不支持。", feature)
             }
             ErrorKind::UnpackArchiveError { tool, version } => write!(
                 f,
-                "Could not unpack {} v{}
+                "无法解压 {} v{}
 
-Please ensure the correct version is specified.",
+请确保指定了正确的版本。",
                 tool, version
             ),
             ErrorKind::UpgradePackageNotFound { package, manager } => write!(
                 f,
-                r#"Could not locate the package '{}' to upgrade.
+                r#"无法找到要升级的包 '{}'。
 
-Please ensure it is installed with `{} {0}`"#,
+请确保使用 `{} {0}` 安装它"#,
                 package,
                 match manager {
                     PackageManager::Npm => "npm i -g",
@@ -1350,23 +1471,23 @@ Please ensure it is installed with `{} {0}`"#,
                 };
                 write!(
                     f,
-                    r#"The package '{}' was installed using {}.
+                    r#"包 '{}' 是使用 {} 安装的。
 
-To upgrade it, please use the command `{} {0}`"#,
+要升级它，请使用命令 `{} {0}`"#,
                     package, name, command
                 )
             }
             ErrorKind::VersionParseError { version } => write!(
                 f,
-                r#"Could not parse version "{}"
+                r#"无法解析版本 "{}"
 
-Please verify the intended version."#,
+请验证预期的版本。"#,
                 version
             ),
             ErrorKind::WriteBinConfigError { file } => write!(
                 f,
-                "Could not write executable configuration
-to {}
+                "无法写入可执行文件配置
+到 {}
 
 {}",
                 file.display(),
@@ -1374,8 +1495,8 @@ to {}
             ),
             ErrorKind::WriteDefaultNpmError { file } => write!(
                 f,
-                "Could not write bundled npm version
-to {}
+                "无法写入捆绑的 npm 版本
+到 {}
 
 {}",
                 file.display(),
@@ -1383,15 +1504,15 @@ to {}
             ),
             ErrorKind::WriteLauncherError { tool } => write!(
                 f,
-                "Could not set up launcher for {}
+                "无法为 {} 设置启动器
 
-This is most likely an intermittent failure, please try again.",
+这很可能是一个临时故障，请重试。",
                 tool
             ),
             ErrorKind::WriteNodeIndexCacheError { file } => write!(
                 f,
-                "Could not write Node index cache
-to {}
+                "无法写入 Node 索引缓存
+到 {}
 
 {}",
                 file.display(),
@@ -1399,8 +1520,8 @@ to {}
             ),
             ErrorKind::WriteNodeIndexExpiryError { file } => write!(
                 f,
-                "Could not write Node index cache expiration
-to {}
+                "无法写入 Node 索引缓存过期时间
+到 {}
 
 {}",
                 file.display(),
@@ -1408,8 +1529,8 @@ to {}
             ),
             ErrorKind::WritePackageConfigError { file } => write!(
                 f,
-                "Could not write package configuration
-to {}
+                "无法写入包配置
+到 {}
 
 {}",
                 file.display(),
@@ -1417,8 +1538,8 @@ to {}
             ),
             ErrorKind::WritePlatformError { file } => write!(
                 f,
-                "Could not save platform settings
-to {}
+                "无法保存平台设置
+到 {}
 
 {}",
                 file.display(),
@@ -1427,32 +1548,31 @@ to {}
             #[cfg(windows)]
             ErrorKind::WriteUserPathError => write!(
                 f,
-                "Could not write Path environment variable.
+                "无法写入 Path 环境变量。
 
-Please ensure you have permissions to edit your environment variables."
+请确保您有权编辑您的环境变量。"
             ),
             ErrorKind::Yarn2NotSupported => write!(
                 f,
-                "Yarn version 2 is not recommended for use, and not supported by Volta.
+                "不建议使用 Yarn 2 版本，Volta 也不支持。
 
-Please use version 3 or greater instead."
+请改用 3 或更高版本。"
             ),
             ErrorKind::YarnLatestFetchError { from_url } => write!(
                 f,
-                "Could not fetch latest version of Yarn
-from {}
+                "无法从 {} 获取 Yarn 的最新版本
 
-Please verify your internet connection.",
+请检查您的网络连接。",
                 from_url
             ),
             ErrorKind::YarnVersionNotFound { matching } => write!(
                 f,
-                r#"Could not find Yarn version matching "{}" in the version registry.
+                r#"在版本注册表中找不到匹配 "{}" 的 Yarn 版本。
 
-Please verify that the version is correct."#,
+请验证版本是否正确。"#,
                 matching
             ),
-        }
+    }
     }
 }
 
